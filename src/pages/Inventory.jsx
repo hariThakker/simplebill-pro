@@ -42,39 +42,62 @@ export default function Inventory() {
     <div className="page-transition">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h2 style={{ fontSize: '24px', fontWeight: 800 }}>Inventory</h2>
-          <p style={{ color: 'var(--text-light)' }}>Manage your cloud products</p>
+          <h2 style={{ fontSize: '28px', fontWeight: 900 }}>Inventory</h2>
+          <p style={{ color: 'var(--text-dim)' }}>Manage your cloud products</p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} style={{ padding: '10px 20px', background: 'var(--primary)', color: 'white' }}>
+        <button onClick={() => setShowForm(!showForm)} className={`btn ${showForm ? 'btn-ghost' : 'btn-primary'}`} style={{ borderRadius: '14px' }}>
           {showForm ? 'Cancel' : '+ Add Item'}
         </button>
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="card" style={{ marginBottom: '24px', animation: 'fadeIn 0.3s ease' }}>
+        <form onSubmit={handleSubmit} className="card" style={{ marginBottom: '32px', animation: 'slideIn 0.3s ease' }}>
+          <h3 style={{ marginBottom: '20px', fontSize: '18px' }}>Product Details</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
-            <input required placeholder="Product Name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={{ padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }} />
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '6px', display: 'block' }}>PRODUCT NAME</label>
+              <input required className="input-v2" placeholder="e.g. Filter Coffee" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <input required type="number" placeholder="Price" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} style={{ padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }} />
-              <input required type="number" placeholder="Stock" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} style={{ padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }} />
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '6px', display: 'block' }}>PRICE (₹)</label>
+                <input required type="number" className="input-v2" placeholder="0.00" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '6px', display: 'block' }}>INITIAL STOCK</label>
+                <input required type="number" className="input-v2" placeholder="0" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} />
+              </div>
             </div>
           </div>
-          <button type="submit" style={{ width: '100%', marginTop: '16px', padding: '14px', background: 'var(--primary)', color: 'white' }}>Save to Cloud</button>
+          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '24px', height: '52px', borderRadius: '12px' }}>Save to Cloud</button>
         </form>
       )}
 
-      {loading ? <p>Loading...</p> : (
-        <div>
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-dim)' }}>Loading Stock...</div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
           {items.map(item => (
-            <div key={item.id} className="item-card">
-              <div>
-                <div style={{ fontWeight: 700 }}>{item.name}</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-light)' }}>Stock: {item.stock}</div>
+            <div key={item.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ width: '44px', height: '44px', background: '#f1f5f9', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>📦</div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '16px' }}>{item.name}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-dim)', fontWeight: 600 }}>STOCK: {item.stock} units</div>
+                </div>
               </div>
-              <div style={{ fontWeight: 800, color: 'var(--primary)', fontSize: '18px' }}>₹{item.price}</div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontWeight: 800, color: 'var(--accent)', fontSize: '20px' }}>₹{item.price}</div>
+              </div>
             </div>
           ))}
-          {items.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-light)', padding: '40px' }}>No items in this group.</p>}
+          {items.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '60px 20px', background: 'rgba(0,0,0,0.02)', borderRadius: '24px', border: '2px dashed var(--border)' }}>
+              <div style={{ fontSize: '40px', marginBottom: '16px' }}>📭</div>
+              <p style={{ fontWeight: 700, color: 'var(--text-dim)' }}>No items found in this group.</p>
+              <p style={{ fontSize: '13px', color: 'var(--text-light)' }}>Start by adding your first product above.</p>
+            </div>
+          )}
         </div>
       )}
     </div>

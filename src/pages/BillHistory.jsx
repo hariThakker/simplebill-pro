@@ -28,35 +28,65 @@ export default function BillHistory() {
 
   return (
     <div className="page-transition">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <div>
-          <h2 style={{ fontSize: '24px', fontWeight: 800 }}>History</h2>
-          <p style={{ color: 'var(--text-light)' }}>View and manage past bills</p>
+          <h2 style={{ fontSize: '28px', fontWeight: 900 }}>Sales Logs</h2>
+          <p style={{ color: 'var(--text-dim)' }}>Detailed record of cloud invoices</p>
         </div>
-        <button onClick={fetchHistory} style={{ padding: '8px 16px', background: 'var(--primary-light)', color: 'var(--primary)' }}>Refresh</button>
+        <button onClick={fetchHistory} className="btn btn-ghost" style={{ fontSize: '13px', fontWeight: 700 }}>
+          <span>🔄</span> Refresh
+        </button>
       </div>
 
-      {loading ? <p>Loading...</p> : (
-        <div>
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-dim)' }}>Fetching Logs...</div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
           {bills.map(bill => (
-            <div key={bill.id} className="card" style={{ marginBottom: '12px', padding: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: '16px' }}>#{bill.invoice_number}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-light)' }}>{new Date(bill.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</div>
+            <div key={bill.id} className="card" style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                  <div style={{ width: '48px', height: '48px', background: '#f1f5f9', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>📜</div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '17px', color: 'var(--primary)' }}>{bill.invoice_number}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-dim)', fontWeight: 600 }}>{new Date(bill.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</div>
+                  </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 800, fontSize: '18px', color: 'var(--primary)' }}>₹{bill.total_amount.toLocaleString()}</div>
-                  <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '4px', background: bill.payment_mode === 'cash' ? '#dcfce7' : '#fef3c7', color: bill.payment_mode === 'cash' ? '#166534' : '#92400e', fontWeight: 700, textTransform: 'uppercase' }}>{bill.payment_mode}</span>
+                  <div style={{ fontWeight: 900, fontSize: '22px', color: 'var(--text)' }}>₹{bill.total_amount.toLocaleString()}</div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                    <span style={{ 
+                      fontSize: '10px', 
+                      padding: '3px 10px', 
+                      borderRadius: '20px', 
+                      background: bill.payment_mode === 'cash' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(59, 130, 246, 0.1)', 
+                      color: bill.payment_mode === 'cash' ? 'var(--success)' : 'var(--accent)', 
+                      fontWeight: 800, 
+                      textTransform: 'uppercase' 
+                    }}>
+                      {bill.payment_mode === 'cash' ? '💵 Cash' : '📱 Online'}
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
-                <div style={{ fontSize: '13px', color: 'var(--text-light)' }}>{bill.items?.length || 0} items</div>
-                <button onClick={() => deleteBill(bill.id)} style={{ padding: '6px 12px', background: 'white', border: '1px solid var(--danger)', color: 'var(--danger)', fontSize: '12px' }}>Delete</button>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+                <div style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: 600 }}>
+                   {bill.items?.length || 0} Products Included
+                </div>
+                <button onClick={() => deleteBill(bill.id)} className="btn" style={{ padding: '6px 12px', background: 'rgba(239, 68, 68, 0.05)', color: 'var(--danger)', fontSize: '11px', fontWeight: 800, borderRadius: '8px' }}>
+                  VOID BILL
+                </button>
               </div>
             </div>
           ))}
-          {bills.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-light)', padding: '40px' }}>No history found.</p>}
+          {bills.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '60px 20px', background: 'rgba(0,0,0,0.02)', borderRadius: '24px', border: '2px dashed var(--border)' }}>
+              <div style={{ fontSize: '40px', marginBottom: '16px' }}>📉</div>
+              <p style={{ fontWeight: 700, color: 'var(--text-dim)' }}>No sales recorded yet.</p>
+              <p style={{ fontSize: '13px', color: 'var(--text-light)' }}>Bills generated from POS will appear here.</p>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -75,28 +75,30 @@ export default function Settings() {
   }
 
   return (
-    <div style={{ padding: '30px', maxWidth: '600px' }}>
-      <h2 style={{ marginBottom: '20px' }}>Business Setup</h2>
-      <p style={{ color: '#64748b', marginBottom: '30px', fontSize: '14px' }}>
-        These details will appear at the top of your printed receipts.
-      </p>
+    <div className="page-transition" style={{ maxWidth: '600px', margin: '0 auto' }}>
+      <div style={{ marginBottom: '32px' }}>
+        <h2 style={{ fontSize: '28px', fontWeight: 900 }}>Business Setup</h2>
+        <p style={{ color: 'var(--text-dim)' }}>
+          Configure details for your cloud-printed receipts.
+        </p>
+      </div>
 
-      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <div className="form-group">
-          <label style={{ display: 'block', fontWeight: 'bold', fontSize: '13px', marginBottom: '8px' }}>Company Name *</label>
+      <form onSubmit={handleSave} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div>
+          <label style={{ display: 'block', fontWeight: 700, fontSize: '13px', color: 'var(--text-dim)', marginBottom: '8px' }}>COMPANY NAME *</label>
           <input 
             required
-            style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+            className="input-v2"
             value={formData.business_name}
             onChange={e => setFormData({...formData, business_name: e.target.value})}
             placeholder="e.g. My Awesome Store"
           />
         </div>
 
-        <div className="form-group">
-          <label style={{ display: 'block', fontWeight: 'bold', fontSize: '13px', marginBottom: '8px' }}>Location / Address</label>
+        <div>
+          <label style={{ display: 'block', fontWeight: 700, fontSize: '13px', color: 'var(--text-dim)', marginBottom: '8px' }}>LOCATION / ADDRESS</label>
           <input 
-            style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+            className="input-v2"
             value={formData.location}
             onChange={e => setFormData({...formData, location: e.target.value})}
             placeholder="e.g. 123 Main St, Mumbai"
@@ -104,22 +106,22 @@ export default function Settings() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-          <div className="form-group">
-            <label style={{ display: 'block', fontWeight: 'bold', fontSize: '13px', marginBottom: '8px' }}>Phone Number</label>
+          <div>
+            <label style={{ display: 'block', fontWeight: 700, fontSize: '13px', color: 'var(--text-dim)', marginBottom: '8px' }}>PHONE NUMBER</label>
             <input 
-              style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+              className="input-v2"
               value={formData.phone}
               onChange={e => setFormData({...formData, phone: e.target.value})}
               placeholder="+91 98765 43210"
             />
           </div>
-          <div className="form-group">
-            <label style={{ display: 'block', fontWeight: 'bold', fontSize: '13px', marginBottom: '8px' }}>GST Number (Optional)</label>
+          <div>
+            <label style={{ display: 'block', fontWeight: 700, fontSize: '13px', color: 'var(--text-dim)', marginBottom: '8px' }}>GST NUMBER</label>
             <input 
-              style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+              className="input-v2"
               value={formData.gst_number}
               onChange={e => setFormData({...formData, gst_number: e.target.value})}
-              placeholder="e.g. 27AAACR1234A1Z1"
+              placeholder="Optional"
             />
           </div>
         </div>
@@ -127,9 +129,10 @@ export default function Settings() {
         <button 
           type="submit" 
           disabled={loading}
-          style={{ padding: '15px', marginTop: '10px', background: saved ? '#10b981' : '#2563eb' }}
+          className="btn"
+          style={{ padding: '16px', background: saved ? 'var(--success)' : 'var(--primary)', color: 'white', borderRadius: '12px', fontSize: '15px', marginTop: '12px' }}
         >
-          {loading ? 'Saving...' : saved ? 'Saved Successfully! ✅' : 'Save Settings'}
+          {loading ? 'Saving Data...' : saved ? 'Successfully Saved! ✅' : 'Save Business Settings'}
         </button>
       </form>
     </div>
