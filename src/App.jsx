@@ -35,9 +35,7 @@ export default function App() {
     const { data } = await supabase.from('groups').select('*').order('name');
     if (data) {
       setGroups(data);
-      if (!selectedGroup && data.length > 0) {
-        changeGroup(data[0].id);
-      }
+      if (!selectedGroup && data.length > 0) changeGroup(data[0].id);
     }
   }
 
@@ -47,54 +45,55 @@ export default function App() {
     window.dispatchEvent(new Event('groupChanged'));
   }
 
-  async function createGroup() {
-    const name = prompt('Enter New Group Name:');
-    if (name) {
-      const { data, error } = await supabase.from('groups').insert([{ name }]).select();
-      if (!error && data) {
-        setGroups([...groups, data[0]]);
-        changeGroup(data[0].id);
-      }
-    }
-  }
-
   return (
-    <div className="dashboard">
-      <div className="sidebar">
-        <div style={{ padding: '20px', borderBottom: '1px solid var(--border)' }}>
-          <h2 style={{ fontSize: '18px', color: 'var(--primary)', marginBottom: '15px' }}>SimpleBill Pro</h2>
+    <div className="app-container">
+      {/* Desktop Sidebar */}
+      <aside className="sidebar">
+        <div style={{ padding: '24px', borderBottom: '1px solid var(--border)' }}>
+          <h1 style={{ fontSize: '20px', color: 'var(--primary)', marginBottom: '16px' }}>SimpleBill Pro</h1>
           <select 
             value={selectedGroup} 
             onChange={(e) => changeGroup(e.target.value)}
-            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)' }}
+            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)' }}
           >
-            <option value="">Select Group</option>
             {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
           </select>
-          <button 
-            onClick={createGroup}
-            style={{ width: '100%', marginTop: '10px', fontSize: '12px', background: 'transparent', color: 'var(--primary)', border: '1px solid var(--primary)' }}
-          >
-            + New Group
-          </button>
         </div>
-        <div className="nav-section" style={{ padding: '20px' }}>
-          <div className="nav-title">MAIN</div>
+        
+        <nav style={{ padding: '16px', flex: 1 }}>
           <Link to="/" className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}>📊 Dashboard</Link>
           <Link to="/pos" className={`nav-link ${location.pathname === '/pos' ? 'active' : ''}`}>🛍️ Quick Sale</Link>
           <Link to="/inventory" className={`nav-link ${location.pathname === '/inventory' ? 'active' : ''}`}>📦 Inventory</Link>
-          <Link to="/history" className={`nav-link ${location.pathname === '/history' ? 'active' : ''}`}>📜 Bill History</Link>
-          <div className="nav-title" style={{marginTop: '20px'}}>TOOLS</div>
-          <Link to="/settings" className={`nav-link ${location.pathname === '/settings' ? 'active' : ''}`}>⚙️ Business Setup</Link>
-          <button className="nav-link" onClick={handleConnection}>
-            {(!isConnected && hasHistory) ? '⚡ Reconnect' : '🖨️ Connect Printer'} 
-            <span style={{ fontSize: '10px', marginLeft: '5px', color: isConnected ? '#10b981' : '#ef4444' }}>
-              {isConnected ? '(Connected ✅)' : '(Disconnected ❌)'}
-            </span>
+          <Link to="/history" className={`nav-link ${location.pathname === '/history' ? 'active' : ''}`}>📜 History</Link>
+          <Link to="/settings" className={`nav-link ${location.pathname === '/settings' ? 'active' : ''}`}>⚙️ Settings</Link>
+        </nav>
+
+        <div style={{ padding: '16px', borderTop: '1px solid var(--border)' }}>
+          <button onClick={handleConnection} style={{ width: '100%', padding: '12px', background: isConnected ? 'var(--success)' : 'var(--primary)', color: 'white' }}>
+            {isConnected ? '✅ Connected' : hasHistory ? '⚡ Reconnect' : '🖨️ Connect'}
           </button>
         </div>
-      </div>
-      <div className="main-content">
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="main-content">
+        {/* Mobile Header */}
+        <header className="mobile-header" style={{ display: location.pathname === '/' ? 'block' : 'none', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h1 style={{ fontSize: '22px' }}>SimpleBill Pro</h1>
+            <button onClick={handleConnection} style={{ padding: '8px 12px', background: isConnected ? 'var(--success)' : 'var(--primary)', color: 'white', fontSize: '12px' }}>
+              {isConnected ? '✅' : '🖨️'}
+            </button>
+          </div>
+          <select 
+            value={selectedGroup} 
+            onChange={(e) => changeGroup(e.target.value)}
+            style={{ width: '100%', marginTop: '15px', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)' }}
+          >
+            {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+          </select>
+        </header>
+
         <Routes>
           <Route path="/" element={<Dashboard selectedGroup={selectedGroup} />} />
           <Route path="/pos" element={<QuickSale />} />
@@ -102,7 +101,37 @@ export default function App() {
           <Route path="/history" element={<BillHistory />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
-      </div>
+      </main>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="bottom-nav">
+        <Link to="/" className={`bottom-nav-item ${location.pathname === '/' ? 'active' : ''}`}>
+          <span style={{ fontSize: '20px' }}>📊</span>
+          <span>Home</span>
+        </Link>
+        <Link to="/pos" className={`bottom-nav-item ${location.pathname === '/pos' ? 'active' : ''}`}>
+          <span style={{ fontSize: '20px' }}>🛍️</span>
+          <span>POS</span>
+        </Link>
+        <Link to="/inventory" className={`bottom-nav-item ${location.pathname === '/inventory' ? 'active' : ''}`}>
+          <span style={{ fontSize: '20px' }}>📦</span>
+          <span>Stock</span>
+        </Link>
+        <Link to="/history" className={`bottom-nav-item ${location.pathname === '/history' ? 'active' : ''}`}>
+          <span style={{ fontSize: '20px' }}>📜</span>
+          <span>History</span>
+        </Link>
+        <Link to="/settings" className={`bottom-nav-item ${location.pathname === '/settings' ? 'active' : ''}`}>
+          <span style={{ fontSize: '20px' }}>⚙️</span>
+          <span>Settings</span>
+        </Link>
+      </nav>
+
+      <style>{`
+        @media (min-width: 1024px) {
+          .mobile-header { display: none !important; }
+        }
+      `}</style>
     </div>
   );
 }
@@ -116,13 +145,7 @@ function Dashboard({ selectedGroup }) {
   useEffect(() => {
     fetchTodayStats();
     window.addEventListener('groupChanged', fetchTodayStats);
-    
-    // Subscribe to realtime changes!
-    const channel = supabase
-      .channel('schema-db-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bills' }, fetchTodayStats)
-      .subscribe();
-      
+    const channel = supabase.channel('db-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'bills' }, fetchTodayStats).subscribe();
     return () => {
       supabase.removeChannel(channel);
       window.removeEventListener('groupChanged', fetchTodayStats);
@@ -132,48 +155,36 @@ function Dashboard({ selectedGroup }) {
   async function fetchTodayStats() {
     const groupId = localStorage.getItem('selectedGroupId');
     if (!groupId) return;
-
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    
-    const { data: bills, error } = await supabase
-      .from('bills')
-      .select('*')
-      .eq('group_id', groupId)
-      .gte('created_at', today.toISOString());
-      
-    if (error) console.error(error);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const { data: bills } = await supabase.from('bills').select('*').eq('group_id', groupId).gte('created_at', today.toISOString());
     if (!bills) return;
-    
     let t = 0, c = 0, o = 0;
     bills.forEach(b => {
       t += Number(b.total_amount);
       if (b.payment_mode.toLowerCase() === 'cash') c += Number(b.total_amount);
       else o += Number(b.total_amount);
     });
-    
-    setRevenue(t);
-    setCash(c);
-    setOnline(o);
-    setInvoices(bills.length);
+    setRevenue(t); setCash(c); setOnline(o); setInvoices(bills.length);
   }
 
   return (
-    <div style={{padding: '20px'}}>
-      <h2 style={{marginBottom: '20px'}}>Live Cloud Dashboard</h2>
-      <div className="metrics-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px'}}>
-        <div style={{background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.1)'}}>
-          <div style={{color: '#64748b', fontSize: '13px', fontWeight: 600}}>TOTAL REVENUE TODAY</div>
-          <div style={{fontSize: '28px', fontWeight: 700, color: '#2563eb'}}>₹{revenue.toFixed(2)}</div>
-          <div style={{fontSize: '12px', color: '#10b981'}}>{invoices} Configured Invoices via Supabase</div>
+    <div className="page-transition">
+      <h2 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '8px' }}>Dashboard</h2>
+      <p style={{ color: 'var(--text-light)', marginBottom: '20px' }}>Real-time collections for today</p>
+      
+      <div className="metrics-grid">
+        <div className="card" style={{ borderTop: '4px solid var(--primary)' }}>
+          <div style={{ color: 'var(--text-light)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>Total Revenue</div>
+          <div style={{ fontSize: '32px', fontWeight: 800, marginTop: '8px' }}>₹{revenue.toLocaleString()}</div>
+          <div style={{ fontSize: '13px', color: 'var(--success)', marginTop: '4px' }}>{invoices} invoices created</div>
         </div>
-        <div style={{background: 'white', padding: '20px', borderRadius: '12px', borderLeft: '4px solid #10b981', boxShadow: '0 1px 3px rgba(0,0,0,0.1)'}}>
-          <div style={{color: '#64748b', fontSize: '13px', fontWeight: 600}}>CASH COLLECTIONS</div>
-          <div style={{fontSize: '28px', fontWeight: 700, color: '#10b981'}}>₹{cash.toFixed(2)}</div>
+        <div className="card" style={{ borderTop: '4px solid var(--success)' }}>
+          <div style={{ color: 'var(--text-light)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>Cash</div>
+          <div style={{ fontSize: '32px', fontWeight: 800, marginTop: '8px', color: 'var(--success)' }}>₹{cash.toLocaleString()}</div>
         </div>
-        <div style={{background: 'white', padding: '20px', borderRadius: '12px', borderLeft: '4px solid #f59e0b', boxShadow: '0 1px 3px rgba(0,0,0,0.1)'}}>
-          <div style={{color: '#64748b', fontSize: '13px', fontWeight: 600}}>ONLINE PAYMENTS</div>
-          <div style={{fontSize: '28px', fontWeight: 700, color: '#f59e0b'}}>₹{online.toFixed(2)}</div>
+        <div className="card" style={{ borderTop: '4px solid var(--warning)' }}>
+          <div style={{ color: 'var(--text-light)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>Online</div>
+          <div style={{ fontSize: '32px', fontWeight: 800, marginTop: '8px', color: 'var(--warning)' }}>₹{online.toLocaleString()}</div>
         </div>
       </div>
     </div>

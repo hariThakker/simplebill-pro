@@ -1,61 +1,174 @@
-* { margin: 0; padding: 0; box-sizing: border-box; }
 :root {
   --primary: #2563eb;
+  --primary-light: #eff6ff;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
   --bg: #f8fafc;
-  --surface: #ffffff;
+  --card: #ffffff;
   --text: #1e293b;
+  --text-light: #64748b;
   --border: #e2e8f0;
+  --radius: 12px;
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-}
-.dashboard {
-  display: flex;
-  height: 100vh;
-}
-.sidebar {
-  width: 250px;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  padding: 20px;
-  overflow-y: auto;
-}
-.nav-section { margin-bottom: 30px; }
-.nav-title {
-  font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 12px;
-}
-.nav-link {
-  display: block;
-  padding: 12px;
-  border-radius: 8px;
-  text-decoration: none;
-  color: var(--text);
-  font-weight: 500;
-  margin-bottom: 5px;
-  font-size: 14px;
-}
-.nav-link:hover { background: var(--bg); }
-.nav-link.active { background: var(--primary); color: white; }
-.main-content {
-  flex: 1;
-  overflow-y: auto;
+
+* {
+  box-sizing: border-box;
+  margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
 button {
   cursor: pointer;
   border: none;
-  background: var(--primary);
-  color: white;
-  padding: 10px 15px;
-  border-radius: 6px;
-  font-weight: bold;
+  border-radius: var(--radius);
+  font-weight: 600;
+  transition: all 0.2s;
+  font-family: inherit;
 }
-@media (max-width: 768px) {
-  .dashboard { flex-direction: column; }
-  .sidebar { width: 100%; display: flex; overflow-x: auto; padding: 10px; border-bottom: 1px solid var(--border); border-right: none; }
-  .nav-section { display: flex; gap: 5px; margin-bottom: 0px; }
-  .nav-title { display: none; }
-  .nav-link { white-space: nowrap; margin-bottom: 0; }
+
+button:active {
+  transform: scale(0.95);
+}
+
+input, select {
+  font-family: inherit;
+  font-size: 16px; /* Prevents iOS zoom on focus */
+}
+
+/* Layout Containers */
+.app-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  padding: 20px;
+  padding-bottom: 100px; /* Space for mobile bottom nav */
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Sidebar (Desktop Only) */
+.sidebar {
+  width: 260px;
+  background: white;
+  border-right: 1px solid var(--border);
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  display: none; /* Hidden by default on mobile */
+  flex-direction: column;
+}
+
+/* Navigation System */
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  text-decoration: none;
+  color: var(--text-light);
+  border-radius: 8px;
+  margin-bottom: 4px;
+}
+
+.nav-link.active {
+  background: var(--primary-light);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-around;
+  padding: 10px 0;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  z-index: 1000;
+  box-shadow: 0 -4px 10px rgba(0,0,0,0.05);
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+  color: var(--text-light);
+  font-size: 10px;
+  gap: 4px;
+}
+
+.bottom-nav-item.active {
+  color: var(--primary);
+}
+
+/* Dashboard Cards */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+/* Inventory List */
+.item-card {
+  background: white;
+  padding: 16px;
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* RESPONSIVE BREAKPOINTS */
+@media (min-width: 1024px) {
+  .sidebar {
+    display: flex;
+  }
+  .bottom-nav {
+    display: none;
+  }
+  .main-content {
+    padding-bottom: 20px;
+  }
+  .metrics-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.page-transition {
+  animation: fadeIn 0.3s ease forwards;
 }

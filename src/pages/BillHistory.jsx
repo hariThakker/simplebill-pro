@@ -14,83 +14,49 @@ export default function BillHistory() {
   async function fetchHistory() {
     const groupId = localStorage.getItem('selectedGroupId');
     if (!groupId) return;
-
     setLoading(true);
-    const { data, error } = await supabase
-      .from('bills')
-      .select('*')
-      .eq('group_id', groupId)
-      .order('created_at', { ascending: false });
-      
-    if (error) console.error(error);
-    else setBills(data || []);
+    const { data } = await supabase.from('bills').select('*').eq('group_id', groupId).order('created_at', { ascending: false });
+    setBills(data || []);
     setLoading(false);
   }
 
   async function deleteBill(id) {
-    if (!confirm('Are you sure you want to delete this bill from cloud?')) return;
+    if (!confirm('Permanently delete this bill?')) return;
     const { error } = await supabase.from('bills').delete().eq('id', id);
     if (!error) setBills(bills.filter(b => b.id !== id));
-    else alert('Error deleting: ' + error.message);
   }
 
   return (
-    <div style={{ padding: '20px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-        <h2>Bill History</h2>
-        <button onClick={fetchHistory} style={{ background: '#64748b' }}>Refresh</button>
+    <div className="page-transition">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <div>
+          <h2 style={{ fontSize: '24px', fontWeight: 800 }}>History</h2>
+          <p style={{ color: 'var(--text-light)' }}>View and manage past bills</p>
+        </div>
+        <button onClick={fetchHistory} style={{ padding: '8px 16px', background: 'var(--primary-light)', color: 'var(--primary)' }}>Refresh</button>
       </div>
 
-      {loading ? <p>Loading history...</p> : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-            <thead>
-              <tr style={{ background: '#f1f5f9', textAlign: 'left' }}>
-                <th style={{ padding: '12px' }}>Date</th>
-                <th style={{ padding: '12px' }}>Invoice #</th>
-                <th style={{ padding: '12px' }}>Mode</th>
-                <th style={{ padding: '12px' }}>Total</th>
-                <th style={{ padding: '12px' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bills.length === 0 ? (
-                <tr>
-                  <td colSpan="5" style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>No bills found in cloud.</td>
-                </tr>
-              ) : null}
-              {bills.map(bill => (
-                <tr key={bill.id} style={{ borderTop: '1px solid #e2e8f0' }}>
-                  <td style={{ padding: '12px', fontSize: '14px' }}>
-                    {new Date(bill.created_at).toLocaleDateString()} {new Date(bill.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </td>
-                  <td style={{ padding: '12px', fontSize: '14px', fontWeight: 'bold' }}>{bill.invoice_number}</td>
-                  <td style={{ padding: '12px' }}>
-                    <span style={{ 
-                      padding: '4px 8px', 
-                      borderRadius: '4px', 
-                      fontSize: '11px', 
-                      fontWeight: 'bold',
-                      textTransform: 'uppercase',
-                      background: bill.payment_mode.toLowerCase() === 'cash' ? '#dcfce7' : '#fef3c7',
-                      color: bill.payment_mode.toLowerCase() === 'cash' ? '#166534' : '#92400e'
-                    }}>
-                      {bill.payment_mode}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px', fontWeight: 'bold' }}>₹{Number(bill.total_amount).toFixed(2)}</td>
-                  <td style={{ padding: '12px' }}>
-                    <button 
-                      onClick={() => deleteBill(bill.id)}
-                      style={{ padding: '5px 10px', background: '#ef4444', fontSize: '12px' }}
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {loading ? <p>Loading...</p> : (
+        <div>
+          {bills.map(bill => (
+            <div key={bill.id} className="card" style={{ marginBottom: '12px', padding: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '16px' }}>#{bill.invoice_number}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-light)' }}>{new Date(bill.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: 800, fontSize: '18px', color: 'var(--primary)' }}>₹{bill.total_amount.toLocaleString()}</div>
+                  <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '4px', background: bill.payment_mode === 'cash' ? '#dcfce7' : '#fef3c7', color: bill.payment_mode === 'cash' ? '#166534' : '#92400e', fontWeight: 700, textTransform: 'uppercase' }}>{bill.payment_mode}</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
+                <div style={{ fontSize: '13px', color: 'var(--text-light)' }}>{bill.items?.length || 0} items</div>
+                <button onClick={() => deleteBill(bill.id)} style={{ padding: '6px 12px', background: 'white', border: '1px solid var(--danger)', color: 'var(--danger)', fontSize: '12px' }}>Delete</button>
+              </div>
+            </div>
+          ))}
+          {bills.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-light)', padding: '40px' }}>No history found.</p>}
         </div>
       )}
     </div>
