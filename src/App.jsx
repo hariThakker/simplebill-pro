@@ -17,7 +17,11 @@ export default function App() {
   useEffect(() => {
     fetchGroups();
     const inv = setInterval(() => setIsConnected(isPrinterConnected()), 2000);
-    return () => clearInterval(inv);
+    window.addEventListener('groupsUpdated', fetchGroups);
+    return () => {
+      clearInterval(inv);
+      window.removeEventListener('groupsUpdated', fetchGroups);
+    };
   }, []);
 
   async function fetchGroups() {
