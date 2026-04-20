@@ -232,17 +232,28 @@ h1, h2, h3, h4 { font-family: 'Outfit', sans-serif; font-weight: 800; color: var
   padding: 14px 16px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
+  background: var(--bg) !important;
+  color: var(--text) !important;
   font-size: 16px;
   transition: all 0.2s ease;
 }
 
 .input-v2:focus {
   outline: none;
-  background: white;
+  background: var(--card) !important;
   border-color: var(--accent);
   box-shadow: 0 0 0 4px rgba(var(--accent-raw), 0.1);
+  color: var(--text) !important;
+}
+
+/* Force dark mode for autofill in Safari/Chrome */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px var(--bg) inset !important;
+  -webkit-text-fill-color: var(--text) !important;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 /* Desktop Overrides */
