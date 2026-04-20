@@ -6,6 +6,7 @@ import QuickSale from './pages/QuickSale';
 import BillHistory from './pages/BillHistory';
 import Settings from './pages/Settings';
 import Auth from './pages/Auth';
+import Staff from './pages/Staff';
 import { connectPrinter, autoReconnect, isPrinterConnected } from './utils/printer';
 
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
     let target = t;
     if (t === 'system') target = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', target);
+    document.body.setAttribute('data-theme', target);
   }
 
   useEffect(() => {
@@ -69,19 +71,19 @@ export default function App() {
     }
   }, [session]);
 
-  async function fetchGroups() {
+  const fetchGroups = async () => {
     const { data } = await supabase.from('groups').select('*').order('name');
     if (data) {
       setGroups(data);
       if (!selectedGroup && data.length > 0) changeGroup(data[0].id);
     }
-  }
+  };
 
-  function changeGroup(id) {
+  const changeGroup = (id) => {
     setSelectedGroup(id);
     localStorage.setItem('selectedGroupId', id);
     window.dispatchEvent(new Event('groupChanged'));
-  }
+  };
 
   const handleConn = async () => {
     if (!isConnected && hasHistory) { if (!(await autoReconnect())) connectPrinter(); }
@@ -95,15 +97,17 @@ export default function App() {
 
   if (!session) return <Auth />;
 
+  const isOwner = session.user?.user_metadata?.role === 'owner';
+
   return (
     <div className="v2-layout">
       {/* Premium Header */}
-      <header style={{ padding: '16px 20px', background: 'white', borderBottom: '1px solid var(--border)', sticky: 'top', zIndex: 900 }}>
+      <header style={{ padding: '16px 20px', background: 'var(--card)', borderBottom: '1px solid var(--border)', sticky: 'top', zIndex: 900 }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h1 style={{ fontSize: '18px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px' }}>SimpleBill <span style={{color: 'var(--accent)'}}>Pro</span></h1>
+            <h1 style={{ fontSize: '18px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text)' }}>SimpleBill <span style={{color: 'var(--accent)'}}>Pro</span></h1>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '2px' }}>
-              <select value={selectedGroup} onChange={(e) => changeGroup(e.target.value)} style={{ border: 'none', background: '#f1f5f9', padding: '4px 10px', borderRadius: '10px', fontSize: '11px', fontWeight: 700, color: 'var(--text-dim)', cursor: 'pointer' }}>
+              <select value={selectedGroup} onChange={(e) => changeGroup(e.target.value)} style={{ border: 'none', background: 'var(--bg)', padding: '4px 10px', borderRadius: '10px', fontSize: '11px', fontWeight: 700, color: 'var(--text-dim)', cursor: 'pointer' }}>
                 {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -130,6 +134,7 @@ export default function App() {
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/history" element={<BillHistory />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/staff" element={<Staff />} />
         </Routes>
       </main>
 
@@ -138,12 +143,13 @@ export default function App() {
         <Link to="/" className={`nav-btn ${location.pathname === '/' ? 'active' : ''}`}><span>📊</span><span>Dash</span></Link>
         <Link to="/pos" className={`nav-btn ${location.pathname === '/pos' ? 'active' : ''}`}><span>⚡</span><span>POS</span></Link>
         <Link to="/inventory" className={`nav-btn ${location.pathname === '/inventory' ? 'active' : ''}`}><span>📦</span><span>Stock</span></Link>
-        <Link to="/history" className={`nav-btn ${location.pathname === '/history' ? 'active' : ''}`}><span>📜</span><span>Logs</span></Link>
+        {isOwner && <Link to="/staff" className={`nav-btn ${location.pathname === '/staff' ? 'active' : ''}`}><span>👥</span><span>Team</span></Link>}
         <Link to="/settings" className={`nav-btn ${location.pathname === '/settings' ? 'active' : ''}`}><span>⚙️</span><span>Setup</span></Link>
       </nav>
     </div>
   );
 }
+
 
 function Dashboard({ user }) {
   const [stats, setStats] = useState({ t: 0, c: 0, o: 0, n: 0 });

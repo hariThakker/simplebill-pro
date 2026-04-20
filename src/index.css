@@ -36,6 +36,17 @@
   --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
 }
 
+[data-theme='dark'] {
+  --bg: #0f172a;
+  --card: #1e293b;
+  --text: #f8fafc;
+  --text-dim: #94a3b8;
+  --text-light: #64748b;
+  --border: #334155;
+  --primary: #f8fafc;
+  --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -49,7 +60,29 @@ body {
   font-family: 'Outfit', 'Inter', sans-serif;
   line-height: 1.5;
   padding-bottom: 90px; /* Space for mobile nav */
-  transition: background 0.3s ease;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Header Fix */
+header {
+  background: var(--card) !important;
+  color: var(--text) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+header h1 {
+  color: var(--text) !important;
+}
+
+header select {
+  background: var(--bg) !important;
+  color: var(--text-dim) !important;
+}
+
+/* Page Background */
+.v2-layout {
+  background: var(--bg);
+  color: var(--text);
 }
 
 /* Typography Utilities */
@@ -94,14 +127,14 @@ h1, h2, h3, h4 { font-family: 'Outfit', sans-serif; font-weight: 800; color: var
   bottom: 16px;
   left: 16px;
   right: 16px;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--card);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   display: flex;
   justify-content: space-around;
   padding: 8px;
   border-radius: 30px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--border);
   box-shadow: 0 15px 30px rgba(0,0,0,0.1);
   z-index: 1000;
 }

@@ -49,7 +49,7 @@ export default function Auth() {
       alignItems: 'center', 
       justifyContent: 'center', 
       padding: '20px',
-      background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)'
+      background: 'var(--bg)'
     }}>
       <div className="card" style={{ 
         width: '100%', 
