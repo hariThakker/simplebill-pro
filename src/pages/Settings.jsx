@@ -240,6 +240,43 @@ export default function Settings() {
           </button>
         </form>
       </section>
+
+      {/* Appearance Section */}
+      <section>
+        <div style={{ marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '28px', fontWeight: 900 }}>Appearance</h2>
+          <p style={{ color: 'var(--text-dim)' }}>Personalize your interface.</p>
+        </div>
+
+        <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+          {['system', 'light', 'dark'].map(t => (
+            <button 
+               key={t}
+               onClick={() => {
+                 localStorage.setItem('theme', t);
+                 window.dispatchEvent(new Event('themeChanged'));
+               }}
+               style={{ 
+                 padding: '16px 8px', 
+                 borderRadius: '16px', 
+                 border: '2px solid ' + (localStorage.getItem('theme') === t ? 'var(--accent)' : 'transparent'),
+                 background: localStorage.getItem('theme') === t ? 'rgba(var(--accent-raw), 0.1)' : 'var(--bg)',
+                 color: localStorage.getItem('theme') === t ? 'var(--accent)' : 'var(--text-dim)',
+                 fontWeight: 800,
+                 textTransform: 'capitalize',
+                 cursor: 'pointer',
+                 display: 'flex',
+                 flexDirection: 'column',
+                 alignItems: 'center',
+                 gap: '8px'
+               }}
+            >
+              <span style={{ fontSize: '20px' }}>{t === 'light' ? '☀️' : t === 'dark' ? '🌙' : '🌓'}</span>
+              <span style={{ fontSize: '12px' }}>{t}</span>
+            </button>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

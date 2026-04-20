@@ -12,10 +12,21 @@ export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const [session, setSession] = useState(null);
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'system');
   const [isConnected, setIsConnected] = useState(false);
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(localStorage.getItem('selectedGroupId') || '');
   const hasHistory = !!localStorage.getItem('lastPrinterId');
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
+  function applyTheme(t) {
+    let target = t;
+    if (t === 'system') target = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', target);
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -26,16 +37,33 @@ export default function App() {
       setSession(session);
     });
 
-    return () => subscription.unsubscribe();
+    const themeHandler = () => setTheme(localStorage.getItem('theme') || 'system');
+    window.addEventListener('themeChanged', themeHandler);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('themeChanged', themeHandler);
+    };
   }, []);
 
   useEffect(() => {
     if (session) {
       fetchGroups();
       const inv = setInterval(() => setIsConnected(isPrinterConnected()), 2000);
+      
+      let lastDate = new Date().toDateString();
+      const dayChecker = setInterval(() => {
+        const current = new Date().toDateString();
+        if (current !== lastDate) {
+          lastDate = current;
+          window.dispatchEvent(new Event('groupChanged'));
+        }
+      }, 60000);
+
       window.addEventListener('groupsUpdated', fetchGroups);
       return () => {
         clearInterval(inv);
+        clearInterval(dayChecker);
         window.removeEventListener('groupsUpdated', fetchGroups);
       };
     }
