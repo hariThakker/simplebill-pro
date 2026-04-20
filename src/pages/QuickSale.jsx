@@ -42,11 +42,14 @@ export default function QuickSale() {
     }).filter(Boolean));
   };
 
+  const [lastBill, setLastBill] = useState(null);
+
   async function handleCheckout(paymentMode) {
     if (billItems.length === 0) return;
     const totalAmount = billItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
     const invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
     const groupId = localStorage.getItem('selectedGroupId');
+    const printerMode = localStorage.getItem('printerMode') || 'ble';
     
     const { error } = await supabase.from('bills').insert([{
       group_id: groupId, invoice_number: invoiceNumber, total_amount: totalAmount, payment_mode: paymentMode, items: billItems
@@ -55,13 +58,23 @@ export default function QuickSale() {
     if (!error) {
       const { data: business } = await supabase.from('settings').select('*').eq('group_id', groupId).maybeSingle();
       const printedBill = generateBillContent(invoiceNumber, billItems, totalAmount, paymentMode, business || {});
-      sendToPrinter(printedBill).then(sentOk => { if(!sentOk) fallbackNativePrint(printedBill); });
-      setBillItems([]);
-      setShowCart(false);
+      
+      if (printerMode === 'ble') {
+        sendToPrinter(printedBill).then(sentOk => { if(!sentOk) fallbackNativePrint(printedBill); });
+        finishCheckout();
+      } else {
+        setLastBill({ content: printedBill, invoiceNumber });
+      }
     } else {
       alert("Error saving bill: " + error.message);
     }
   }
+
+  const finishCheckout = () => {
+    setBillItems([]);
+    setShowCart(false);
+    setLastBill(null);
+  };
 
   const totalAmount = billItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
   const totalQty = billItems.reduce((sum, item) => sum + item.qty, 0);
@@ -173,6 +186,38 @@ export default function QuickSale() {
             <CartContent />
           </div>
         </>
+      )}
+
+      {/* Digital Receipt Modal */}
+      {lastBill && (
+        <div className="cart-drawer-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div className="card page-transition" style={{ maxWidth: '400px', width: '100%', padding: '24px', position: 'relative' }}>
+             <button onClick={finishCheckout} style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }}>✕</button>
+             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+               <div style={{ width: '60px', height: '60px', background: 'rgba(var(--success-raw), 0.1)', color: 'var(--success)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', margin: '0 auto 16px' }}>✓</div>
+               <h3 style={{ fontSize: '20px' }}>Bill Generated!</h3>
+               <p style={{ color: 'var(--text-dim)', fontSize: '14px' }}>#{lastBill.invoiceNumber}</p>
+             </div>
+             
+             <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', marginBottom: '24px', maxHeight: '300px', overflowY: 'auto' }}>
+               <pre style={{ margin: 0, fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
+                 {lastBill.content}
+               </pre>
+             </div>
+
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+               <button onClick={() => {
+                 const text = encodeURIComponent(lastBill.content);
+                 window.open(`https://wa.me/?text=${text}`, '_blank');
+               }} className="btn btn-success" style={{ width: '100%', borderRadius: '14px' }}>
+                 Share on WhatsApp
+               </button>
+               <button onClick={finishCheckout} className="btn btn-ghost" style={{ width: '100%' }}>
+                 Done & Close
+               </button>
+             </div>
+          </div>
+        </div>
       )}
 
       <style>{`

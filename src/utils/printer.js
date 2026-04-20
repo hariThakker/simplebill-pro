@@ -173,6 +173,16 @@ ${'-'.repeat(LINE_WIDTH)}
   bill += `TOTAL: Rs ${subtotal.toFixed(2).padStart(LINE_WIDTH - 10)}\n`;
   bill += `\nItems: ${items.length.toString().padEnd(3)} Paid via: ${paymentMode}\n`;
   bill += `${'-'.repeat(LINE_WIDTH)}\n`;
+  
+  if (business.custom_message) {
+    // Basic word wrap for custom message
+    const msg = business.custom_message;
+    for (let i = 0; i < msg.length; i += LINE_WIDTH) {
+      bill += msg.substring(i, i + LINE_WIDTH) + '\n';
+    }
+    bill += `${'-'.repeat(LINE_WIDTH)}\n`;
+  }
+
   bill += `Thank You!\n`;
   bill += `${'='.repeat(LINE_WIDTH)}\n`;
 

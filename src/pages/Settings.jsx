@@ -12,7 +12,9 @@ export default function Settings() {
     business_name: '',
     location: '',
     phone: '',
-    gst_number: ''
+    gst_number: '',
+    custom_message: '',
+    printer_mode: 'ble' // 'ble' or 'digital'
   });
 
   useEffect(() => {
@@ -42,10 +44,14 @@ export default function Settings() {
         business_name: data.business_name || '',
         location: data.location || '',
         phone: data.phone || '',
-        gst_number: data.gst_number || ''
+        gst_number: data.gst_number || '',
+        custom_message: data.custom_message || '',
+        printer_mode: data.printer_mode || 'ble'
       });
+      // Save printer mode to local storage for quick access in POS
+      localStorage.setItem('printerMode', data.printer_mode || 'ble');
     } else {
-      setFormData({ business_name: '', location: '', phone: '', gst_number: '' });
+      setFormData({ business_name: '', location: '', phone: '', gst_number: '', custom_message: '', printer_mode: 'ble' });
     }
   }
 
@@ -96,6 +102,7 @@ export default function Settings() {
     setLoading(false);
     if (!error) {
       setSaved(true);
+      localStorage.setItem('printerMode', formData.printer_mode);
       setTimeout(() => setSaved(false), 3000);
     } else {
       alert('Error saving settings: ' + error.message);
@@ -142,8 +149,8 @@ export default function Settings() {
       {/* Business Details Section */}
       <section>
         <div style={{ marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '28px', fontWeight: 900 }}>Receipt Config</h2>
-          <p style={{ color: 'var(--text-dim)' }}>Details for the currently selected group.</p>
+          <h2 style={{ fontSize: '28px', fontWeight: 900 }}>Configuration</h2>
+          <p style={{ color: 'var(--text-dim)' }}>Setup your billing experience.</p>
         </div>
 
         <form onSubmit={handleSave} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -155,16 +162,6 @@ export default function Settings() {
               value={formData.business_name}
               onChange={e => setFormData({...formData, business_name: e.target.value})}
               placeholder="e.g. My Awesome Store"
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontWeight: 700, fontSize: '13px', color: 'var(--text-dim)', marginBottom: '8px' }}>LOCATION / ADDRESS</label>
-            <input 
-              className="input-v2"
-              value={formData.location}
-              onChange={e => setFormData({...formData, location: e.target.value})}
-              placeholder="e.g. 123 Main St, Mumbai"
             />
           </div>
 
@@ -189,16 +186,61 @@ export default function Settings() {
             </div>
           </div>
 
+          <div>
+            <label style={{ display: 'block', fontWeight: 700, fontSize: '13px', color: 'var(--text-dim)', marginBottom: '8px' }}>BILL FOOTER MESSAGE</label>
+            <textarea 
+              className="input-v2"
+              style={{ minHeight: '80px', resize: 'vertical' }}
+              value={formData.custom_message}
+              onChange={e => setFormData({...formData, custom_message: e.target.value})}
+              placeholder="e.g. Thank you for shopping! Visit again."
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontWeight: 700, fontSize: '13px', color: 'var(--text-dim)', marginBottom: '8px' }}>PRINTER CONNECTION</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <button 
+                type="button"
+                className="btn"
+                style={{ 
+                  background: formData.printer_mode === 'ble' ? 'var(--accent)' : '#f1f5f9',
+                  color: formData.printer_mode === 'ble' ? 'white' : 'var(--text-dim)',
+                  borderRadius: '12px'
+                }}
+                onClick={() => setFormData({...formData, printer_mode: 'ble'})}
+              >
+                Bluetooth (BLE)
+              </button>
+              <button 
+                type="button"
+                className="btn"
+                style={{ 
+                  background: formData.printer_mode === 'digital' ? 'var(--accent)' : '#f1f5f9',
+                  color: formData.printer_mode === 'digital' ? 'white' : 'var(--text-dim)',
+                  borderRadius: '12px'
+                }}
+                onClick={() => setFormData({...formData, printer_mode: 'digital'})}
+              >
+                Digital Only
+              </button>
+            </div>
+            <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '8px' }}>
+              {formData.printer_mode === 'ble' ? 'Bills will be sent directly to your connected thermal printer.' : 'A digital receipt will be shown on screen for you to share.'}
+            </p>
+          </div>
+
           <button 
             type="submit" 
             disabled={loading}
             className="btn"
-            style={{ padding: '16px', background: saved ? 'var(--success)' : 'var(--primary)', color: 'white', borderRadius: '12px', fontSize: '15px' }}
+            style={{ padding: '16px', background: saved ? 'var(--success)' : 'var(--primary)', color: 'white', borderRadius: '12px', fontSize: '15px', marginTop: '12px' }}
           >
-            {loading ? 'Saving Data...' : saved ? 'Successfully Saved! ✅' : 'Update Receipt Details'}
+            {loading ? 'Saving...' : saved ? 'Settings Updated! ✅' : 'Save Configuration'}
           </button>
         </form>
       </section>
     </div>
   );
 }
+

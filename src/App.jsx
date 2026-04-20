@@ -1,28 +1,45 @@
-import { Routes, Route, Link, useLocation } from 'react-router-dom';
+import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { supabase } from './supabase';
 import Inventory from './pages/Inventory';
 import QuickSale from './pages/QuickSale';
 import BillHistory from './pages/BillHistory';
 import Settings from './pages/Settings';
+import Auth from './pages/Auth';
 import { connectPrinter, autoReconnect, isPrinterConnected } from './utils/printer';
 
 export default function App() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [session, setSession] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(localStorage.getItem('selectedGroupId') || '');
   const hasHistory = !!localStorage.getItem('lastPrinterId');
 
   useEffect(() => {
-    fetchGroups();
-    const inv = setInterval(() => setIsConnected(isPrinterConnected()), 2000);
-    window.addEventListener('groupsUpdated', fetchGroups);
-    return () => {
-      clearInterval(inv);
-      window.removeEventListener('groupsUpdated', fetchGroups);
-    };
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (session) {
+      fetchGroups();
+      const inv = setInterval(() => setIsConnected(isPrinterConnected()), 2000);
+      window.addEventListener('groupsUpdated', fetchGroups);
+      return () => {
+        clearInterval(inv);
+        window.removeEventListener('groupsUpdated', fetchGroups);
+      };
+    }
+  }, [session]);
 
   async function fetchGroups() {
     const { data } = await supabase.from('groups').select('*').order('name');
@@ -43,32 +60,44 @@ export default function App() {
     else connectPrinter();
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/');
+  };
+
+  if (!session) return <Auth />;
+
   return (
     <div className="v2-layout">
       {/* Premium Header */}
-      <header style={{ padding: '24px 20px', background: 'white', borderBottom: '1px solid var(--border)', sticky: 'top', zIndex: 900 }}>
+      <header style={{ padding: '16px 20px', background: 'white', borderBottom: '1px solid var(--border)', sticky: 'top', zIndex: 900 }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h1 style={{ fontSize: '20px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px' }}>SimpleBill <span style={{color: 'var(--accent)'}}>Pro</span></h1>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
-              <select value={selectedGroup} onChange={(e) => changeGroup(e.target.value)} style={{ border: 'none', background: '#f1f5f9', padding: '4px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: 700, color: 'var(--text-dim)', cursor: 'pointer' }}>
+            <h1 style={{ fontSize: '18px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px' }}>SimpleBill <span style={{color: 'var(--accent)'}}>Pro</span></h1>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '2px' }}>
+              <select value={selectedGroup} onChange={(e) => changeGroup(e.target.value)} style={{ border: 'none', background: '#f1f5f9', padding: '4px 10px', borderRadius: '10px', fontSize: '11px', fontWeight: 700, color: 'var(--text-dim)', cursor: 'pointer' }}>
                 {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: isConnected ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', padding: '4px 8px', borderRadius: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: isConnected ? 'var(--success)' : 'var(--danger)' }} />
-                <span style={{ fontSize: '10px', fontWeight: 800, color: isConnected ? 'var(--success)' : 'var(--danger)', textTransform: 'uppercase' }}>{isConnected ? 'Online' : 'Offline'}</span>
+                <span style={{ fontSize: '9px', fontWeight: 800, color: isConnected ? 'var(--success)' : 'var(--danger)', textTransform: 'uppercase' }}>{isConnected ? 'Online' : 'Offline'}</span>
               </div>
             </div>
           </div>
-          <button onClick={handleConn} className="btn" style={{ background: 'var(--primary)', color: 'white', fontSize: '13px', borderRadius: '14px', padding: '10px 18px' }}>
-            {isConnected ? 'Connected' : 'Connect Printer'}
-          </button>
+          <div style={{ display: 'flex', items: 'center', gap: '8px' }}>
+            <button onClick={handleConn} className="btn" style={{ background: isConnected ? 'rgba(var(--success-raw), 0.1)' : 'var(--primary)', color: isConnected ? 'var(--success)' : 'white', fontSize: '12px', borderRadius: '12px', padding: '8px 14px' }}>
+              {isConnected ? 'Printer Ready' : 'Connect'}
+            </button>
+            <button onClick={handleLogout} className="btn btn-ghost" style={{ fontSize: '12px', padding: '8px 12px' }}>
+              🚪
+            </button>
+          </div>
         </div>
       </header>
 
-      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px 20px 100px 20px' }}>
+      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '16px 20px 100px 20px' }}>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/" element={<Dashboard user={session.user} />} />
           <Route path="/pos" element={<QuickSale />} />
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/history" element={<BillHistory />} />
@@ -88,21 +117,53 @@ export default function App() {
   );
 }
 
-function Dashboard() {
+function Dashboard({ user }) {
   const [stats, setStats] = useState({ t: 0, c: 0, o: 0, n: 0 });
+  const [chartData, setChartData] = useState([]);
 
   const load = async () => {
     const gid = localStorage.getItem('selectedGroupId');
     if (!gid) return;
-    const start = new Date(); start.setHours(0,0,0,0);
-    const { data } = await supabase.from('bills').select('*').eq('group_id', gid).gte('created_at', start.toISOString());
+    
+    const today = new Date(); today.setHours(0,0,0,0);
+    const last7Days = new Date(); last7Days.setDate(today.getDate() - 6);
+    last7Days.setHours(0,0,0,0);
+
+    const { data } = await supabase.from('bills')
+      .select('*')
+      .eq('group_id', gid)
+      .gte('created_at', last7Days.toISOString());
+
     if (data) {
-      let t=0, c=0, o=0;
+      // Current day stats
+      let t=0, c=0, o=0, n=0;
+      const todayIso = today.toISOString().split('T')[0];
+      
+      // Weekly aggregation for graph
+      const dailyMap = {};
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(); d.setDate(today.getDate() - i);
+        dailyMap[d.toISOString().split('T')[0]] = { cash: 0, online: 0, date: d.toLocaleDateString('en-IN', { weekday: 'short' }) };
+      }
+
       data.forEach(b => { 
-        t += Number(b.total_amount);
-        if (b.payment_mode === 'cash') c += Number(b.total_amount); else o += Number(b.total_amount);
+        const bDate = b.created_at.split('T')[0];
+        const amt = Number(b.total_amount);
+        
+        if (bDate === todayIso) {
+          t += amt;
+          if (b.payment_mode === 'cash') c += amt; else o += amt;
+          n++;
+        }
+
+        if (dailyMap[bDate]) {
+          if (b.payment_mode === 'cash') dailyMap[bDate].cash += amt;
+          else dailyMap[bDate].online += amt;
+        }
       });
-      setStats({ t, c, o, n: data.length });
+
+      setStats({ t, c, o, n });
+      setChartData(Object.values(dailyMap).reverse());
     }
   };
 
@@ -113,38 +174,72 @@ function Dashboard() {
     return () => { supabase.removeChannel(sub); window.removeEventListener('groupChanged', load); };
   }, []);
 
+  const maxVal = Math.max(...chartData.map(d => d.cash + d.online), 1);
+
   return (
     <div className="page-transition">
-      <div style={{ marginBottom: '32px' }}>
-        <h2 style={{ fontSize: '32px', fontWeight: 900, letterSpacing: '-0.5px' }}>Day Overview</h2>
-        <p style={{ color: 'var(--text-dim)', fontWeight: 500 }}>Real-time sales tracking</p>
+      <div style={{ marginBottom: '24px' }}>
+        <h2 style={{ fontSize: '28px', fontWeight: 900 }}>Hello, {user.user_metadata?.full_name?.split(' ')[0] || 'User'}!</h2>
+        <p style={{ color: 'var(--text-dim)', fontWeight: 500 }}>Here's what's happening today.</p>
       </div>
       
-      <div className="card" style={{ background: 'var(--primary)', color: 'white', marginBottom: '20px', padding: '32px', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: '-20px', right: '-20px', fontSize: '100px', opacity: 0.1 }}>💰</div>
-        <div style={{ opacity: 0.8, fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Daily Revenue</div>
-        <div style={{ fontSize: '48px', fontWeight: 900, margin: '8px 0' }}>₹{stats.t.toLocaleString()}</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px' }}>
-          <div style={{ padding: '4px 10px', background: 'rgba(255,255,255,0.1)', borderRadius: '20px', fontSize: '12px', fontWeight: 600 }}>{stats.n} Transactions Today</div>
+      <div className="card" style={{ background: 'var(--primary)', color: 'white', marginBottom: '20px', padding: '24px', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ opacity: 0.8, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Daily Revenue</div>
+        <div style={{ fontSize: '40px', fontWeight: 900, margin: '4px 0' }}>₹{stats.t.toLocaleString()}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+          <div style={{ padding: '4px 10px', background: 'rgba(255,255,255,0.1)', borderRadius: '20px', fontSize: '11px', fontWeight: 600 }}>{stats.n} Transactions</div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-        <div className="card" style={{ padding: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>💵</div>
-            <div style={{ color: 'var(--text-dim)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>Cash</div>
-          </div>
-          <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--success)' }}>₹{stats.c.toLocaleString()}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+        <div className="card" style={{ padding: '20px' }}>
+          <div style={{ color: 'var(--text-dim)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Cash In</div>
+          <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--success)' }}>₹{stats.c.toLocaleString()}</div>
         </div>
-        <div className="card" style={{ padding: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>📱</div>
-            <div style={{ color: 'var(--text-dim)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>Online</div>
+        <div className="card" style={{ padding: '20px' }}>
+          <div style={{ color: 'var(--text-dim)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Online In</div>
+          <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--accent)' }}>₹{stats.o.toLocaleString()}</div>
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: '24px' }}>
+        <h3 style={{ fontSize: '16px', marginBottom: '20px' }}>Sales Trend (Last 7 Days)</h3>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '150px', gap: '8px' }}>
+          {chartData.map((d, i) => (
+            <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '100%', display: 'flex', flexDirection: 'column-reverse', height: '120px' }}>
+                <div style={{ 
+                  width: '100%', 
+                  height: `${(d.cash / maxVal) * 100}%`, 
+                  background: 'var(--success)', 
+                  borderRadius: '4px',
+                  opacity: 0.8
+                }} />
+                <div style={{ 
+                  width: '100%', 
+                  height: `${(d.online / maxVal) * 100}%`, 
+                  background: 'var(--accent)', 
+                  borderRadius: '4px',
+                  marginBottom: '2px',
+                  opacity: 0.8
+                }} />
+              </div>
+              <span style={{ fontSize: '10px', color: 'var(--text-dim)', fontWeight: 700 }}>{d.date}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: '16px', marginTop: '20px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+             <div style={{ width: '10px', height: '10px', background: 'var(--success)', borderRadius: '3px' }} />
+             <span style={{ fontSize: '11px', fontWeight: 600 }}>Cash</span>
           </div>
-          <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--accent)' }}>₹{stats.o.toLocaleString()}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+             <div style={{ width: '10px', height: '10px', background: 'var(--accent)', borderRadius: '3px' }} />
+             <span style={{ fontSize: '11px', fontWeight: 600 }}>Online</span>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
