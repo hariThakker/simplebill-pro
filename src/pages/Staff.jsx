@@ -35,14 +35,30 @@ export default function Staff() {
   }
 
   async function fetchStaff() {
-    // Fetch profiles that have role='staff'
-    const { data } = await supabase.from('profiles').select('*').eq('role', 'staff');
+    const groupId = localStorage.getItem('selectedGroupId');
+    if (!groupId) return;
+    
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('role', 'staff')
+      .eq('group_id', groupId); // Filter staff by the currently selected branch
+    
+    if (error) {
+      console.error('Error fetching staff:', error);
+      // If table is missing, error.code will be 'PGRST116' or similar
+    }
+    
     if (data) setStaff(data);
     setLoading(false);
   }
 
   async function handleAddStaff(e) {
     e.preventDefault();
+    const groupId = localStorage.getItem('selectedGroupId');
+    if (!groupId) return alert('Please select a branch (Group) first!');
+    
     setIsCreating(true);
     
     try {
@@ -52,17 +68,20 @@ export default function Staff() {
         options: {
           data: {
             full_name: formData.full_name,
-            role: 'staff'
+            role: 'staff',
+            group_id: groupId // Link staff to the current branch
           }
         }
       });
 
       if (error) throw error;
 
-      alert(`Staff account created for ${formData.full_name}! \n\nThey can now login with: \nEmail: ${formData.email} \nPassword: ${formData.password}`);
+      alert(`Staff account created successfully for ${formData.full_name}!`);
       setShowAdd(false);
       setFormData({ email: '', password: '', full_name: '', role: 'staff' });
-      fetchStaff();
+      
+      // Wait 1.5 seconds for the Supabase trigger to finish creating the profile
+      setTimeout(fetchStaff, 1500);
     } catch (err) {
       alert('Error creating staff: ' + err.message);
     } finally {
