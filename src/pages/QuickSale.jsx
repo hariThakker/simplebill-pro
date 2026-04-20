@@ -100,10 +100,10 @@ export default function QuickSale() {
                 <div style={{ fontSize: '13px', color: 'var(--text-dim)' }}>₹{item.price} each</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', background: '#f1f5f9', borderRadius: '10px', padding: '4px' }}>
-                  <button onClick={() => updateQty(item.id, -1)} style={{ width: '28px', height: '28px', border: 'none', background: 'white', borderRadius: '8px', cursor: 'pointer', fontWeight: 800 }}>-</button>
+                <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '10px', padding: '4px' }}>
+                  <button onClick={() => updateQty(item.id, -1)} style={{ width: '28px', height: '28px', border: 'none', background: 'var(--card)', color: 'var(--text)', borderRadius: '8px', cursor: 'pointer', fontWeight: 800 }}>-</button>
                   <span style={{ width: '32px', textAlign: 'center', fontWeight: 700 }}>{item.qty}</span>
-                  <button onClick={() => updateQty(item.id, 1)} style={{ width: '28px', height: '28px', border: 'none', background: 'white', borderRadius: '8px', cursor: 'pointer', fontWeight: 800 }}>+</button>
+                  <button onClick={() => updateQty(item.id, 1)} style={{ width: '28px', height: '28px', border: 'none', background: 'var(--card)', color: 'var(--text)', borderRadius: '8px', cursor: 'pointer', fontWeight: 800 }}>+</button>
                 </div>
                 <div style={{ fontWeight: 800, width: '60px', textAlign: 'right' }}>₹{item.qty * item.price}</div>
               </div>
@@ -145,7 +145,7 @@ export default function QuickSale() {
             <div className="pos-grid">
               {items.map(item => (
                 <div key={item.id} onClick={() => addToBill(item)} className="product-card">
-                  <div style={{ width: '48px', height: '48px', background: '#f1f5f9', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', margin: '0 auto 12px' }}>📦</div>
+                  <div style={{ width: '48px', height: '48px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', margin: '0 auto 12px' }}>📦</div>
                   <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '4px' }}>{item.name}</div>
                   <div style={{ fontWeight: 800, color: 'var(--accent)' }}>₹{item.price}</div>
                 </div>
@@ -182,7 +182,7 @@ export default function QuickSale() {
         <>
           <div className="cart-drawer-overlay" onClick={() => setShowCart(false)} />
           <div className="cart-drawer">
-            <div style={{ width: '40px', height: '4px', background: '#e2e8f0', borderRadius: '2px', margin: '0 auto 16px' }} />
+            <div style={{ width: '40px', height: '4px', background: 'var(--border)', borderRadius: '2px', margin: '0 auto 16px' }} />
             <CartContent />
           </div>
         </>
@@ -199,8 +199,8 @@ export default function QuickSale() {
                <p style={{ color: 'var(--text-dim)', fontSize: '14px' }}>#{lastBill.invoiceNumber}</p>
              </div>
              
-             <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', marginBottom: '24px', maxHeight: '300px', overflowY: 'auto' }}>
-               <pre style={{ margin: 0, fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
+             <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', padding: '16px', borderRadius: '12px', marginBottom: '24px', maxHeight: '300px', overflowY: 'auto' }}>
+               <pre style={{ margin: 0, fontSize: '11px', color: 'var(--text)', fontFamily: 'monospace', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
                  {lastBill.content}
                </pre>
              </div>

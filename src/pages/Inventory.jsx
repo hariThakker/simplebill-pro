@@ -80,7 +80,7 @@ export default function Inventory() {
           {items.map(item => (
             <div key={item.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{ width: '44px', height: '44px', background: '#f1f5f9', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>📦</div>
+                <div style={{ width: '44px', height: '44px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>📦</div>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: '16px' }}>{item.name}</div>
                   <div style={{ fontSize: '12px', color: 'var(--text-dim)', fontWeight: 600 }}>STOCK: {item.stock} units</div>

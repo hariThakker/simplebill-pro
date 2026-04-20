@@ -137,7 +137,7 @@ export default function Settings() {
             <label style={{ display: 'block', fontWeight: 700, fontSize: '11px', color: 'var(--text-dim)', marginBottom: '12px', textTransform: 'uppercase' }}>Available Groups</label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {groups.map(g => (
-                <div key={g.id} style={{ background: '#f1f5f9', padding: '6px 14px', borderRadius: '10px', fontSize: '14px', fontWeight: 600 }}>
+                <div key={g.id} style={{ background: 'var(--bg)', color: 'var(--text)', padding: '6px 14px', border: '1px solid var(--border)', borderRadius: '10px', fontSize: '14px', fontWeight: 600 }}>
                   {g.name}
                 </div>
               ))}
@@ -204,8 +204,9 @@ export default function Settings() {
                 type="button"
                 className="btn"
                 style={{ 
-                  background: formData.printer_mode === 'ble' ? 'var(--accent)' : '#f1f5f9',
+                  background: formData.printer_mode === 'ble' ? 'var(--accent)' : 'var(--bg)',
                   color: formData.printer_mode === 'ble' ? 'white' : 'var(--text-dim)',
+                  border: formData.printer_mode === 'ble' ? 'none' : '1px solid var(--border)',
                   borderRadius: '12px'
                 }}
                 onClick={() => setFormData({...formData, printer_mode: 'ble'})}
@@ -216,8 +217,9 @@ export default function Settings() {
                 type="button"
                 className="btn"
                 style={{ 
-                  background: formData.printer_mode === 'digital' ? 'var(--accent)' : '#f1f5f9',
+                  background: formData.printer_mode === 'digital' ? 'var(--accent)' : 'var(--bg)',
                   color: formData.printer_mode === 'digital' ? 'white' : 'var(--text-dim)',
+                  border: formData.printer_mode === 'digital' ? 'none' : '1px solid var(--border)',
                   borderRadius: '12px'
                 }}
                 onClick={() => setFormData({...formData, printer_mode: 'digital'})}
