@@ -32,18 +32,7 @@
   --text-dim: #94a3b8;
   --text-light: #64748b;
   --border: #334155;
-  --primary: #f8fafc;
-  --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-}
-
-[data-theme='dark'] {
-  --bg: #0f172a;
-  --card: #1e293b;
-  --text: #f8fafc;
-  --text-dim: #94a3b8;
-  --text-light: #64748b;
-  --border: #334155;
-  --primary: #f8fafc;
+  --primary: #3b82f6; /* Use a bright blue for primary links/buttons in dark mode */
   --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
 }
 
@@ -54,13 +43,19 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-body {
-  background: var(--bg);
+html, body, #root {
+  background: var(--bg) !important;
   color: var(--text);
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+body {
   font-family: 'Outfit', 'Inter', sans-serif;
   line-height: 1.5;
   padding-bottom: 90px; /* Space for mobile nav */
-  transition: background 0.3s ease, color 0.3s ease;
 }
 
 /* Header Fix */
@@ -77,12 +72,6 @@ header h1 {
 header select {
   background: var(--bg) !important;
   color: var(--text-dim) !important;
-}
-
-/* Page Background */
-.v2-layout {
-  background: var(--bg);
-  color: var(--text);
 }
 
 /* Typography Utilities */
@@ -172,7 +161,7 @@ h1, h2, h3, h4 { font-family: 'Outfit', sans-serif; font-weight: 800; color: var
 }
 
 .product-card {
-  background: white;
+  background: var(--card);
   padding: 20px;
   border-radius: var(--radius-md);
   border: 2px solid transparent;
@@ -180,6 +169,7 @@ h1, h2, h3, h4 { font-family: 'Outfit', sans-serif; font-weight: 800; color: var
   box-shadow: var(--shadow);
   cursor: pointer;
   transition: all 0.2s ease;
+  color: var(--text);
 }
 
 .product-card:active {
@@ -201,7 +191,7 @@ h1, h2, h3, h4 { font-family: 'Outfit', sans-serif; font-weight: 800; color: var
   bottom: 0;
   left: 0;
   right: 0;
-  background: white;
+  background: var(--card);
   border-radius: 24px 24px 0 0;
   padding: 24px;
   z-index: 1200;
@@ -209,6 +199,7 @@ h1, h2, h3, h4 { font-family: 'Outfit', sans-serif; font-weight: 800; color: var
   display: flex;
   flex-direction: column;
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border-top: 1px solid var(--border);
 }
 
 @keyframes slideUp {
@@ -241,7 +232,8 @@ h1, h2, h3, h4 { font-family: 'Outfit', sans-serif; font-weight: 800; color: var
   padding: 14px 16px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  background: #f1f5f9;
+  background: var(--bg);
+  color: var(--text);
   font-size: 16px;
   transition: all 0.2s ease;
 }

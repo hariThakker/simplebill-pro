@@ -1,13 +1,23 @@
 import { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../supabase';
+
+// Secondary client to register staff without affecting owner session
+const authClient = createClient(
+  'https://qblpecdpudamykvgqalx.supabase.co', 
+  'sb_publishable_tlMLvbA4DsJnIrXWVMVbqA_KuSKdjel',
+  { auth: { persistSession: false } }
+);
 
 export default function Staff() {
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
+    password: '',
     full_name: '',
     role: 'staff'
   });
@@ -25,8 +35,7 @@ export default function Staff() {
   }
 
   async function fetchStaff() {
-    // In a real app, you'd fetch from a 'profiles' or 'staff' table
-    // For now, we'll fetch users with 'staff' role linked to this company
+    // Fetch profiles that have role='staff'
     const { data } = await supabase.from('profiles').select('*').eq('role', 'staff');
     if (data) setStaff(data);
     setLoading(false);
@@ -34,10 +43,31 @@ export default function Staff() {
 
   async function handleAddStaff(e) {
     e.preventDefault();
-    alert('Note: To securely create staff accounts, please ask your staff to Sign Up on the login page using the "Staff Member" role. Once they sign up, they will appear here and you can manage their permissions.');
-    // In a production app with Edge Functions, you would call a function here 
-    // to create the user without them needing to sign up themselves.
-    setShowAdd(false);
+    setIsCreating(true);
+    
+    try {
+      const { data, error } = await authClient.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.full_name,
+            role: 'staff'
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      alert(`Staff account created for ${formData.full_name}! \n\nThey can now login with: \nEmail: ${formData.email} \nPassword: ${formData.password}`);
+      setShowAdd(false);
+      setFormData({ email: '', password: '', full_name: '', role: 'staff' });
+      fetchStaff();
+    } catch (err) {
+      alert('Error creating staff: ' + err.message);
+    } finally {
+      setIsCreating(false);
+    }
   }
 
   if (!isOwner) {
@@ -76,15 +106,21 @@ export default function Staff() {
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '8px' }}>EMAIL ADDRESS</label>
                     <input className="input-v2" required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="rahul@example.com" />
                  </div>
+                 <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '8px' }}>SET PASSWORD</label>
+                    <input className="input-v2" required type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} placeholder="••••••••" />
+                 </div>
 
                  <div style={{ background: 'rgba(var(--accent-raw), 0.05)', padding: '16px', borderRadius: '12px', border: '1px dashed var(--accent)' }}>
                     <p style={{ fontSize: '12px', color: 'var(--accent)', fontWeight: 600, lineHeight: '1.4' }}>
-                       💡 <strong>Security Note:</strong> For security, staff members should set their own passwords. After you invite them, they can sign up using this email address.
+                       💡 <strong>Tip:</strong> After you create this account, the staff member can login immediately with the credentials above.
                     </p>
                  </div>
 
                  <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
-                    <button type="submit" className="btn btn-primary" style={{ flex: 1, borderRadius: '12px' }}>Send Invitation</button>
+                    <button type="submit" disabled={isCreating} className="btn btn-primary" style={{ flex: 1, borderRadius: '12px' }}>
+                       {isCreating ? 'Creating...' : 'Create Account'}
+                    </button>
                     <button type="button" onClick={() => setShowAdd(false)} className="btn btn-ghost" style={{ flex: 1 }}>Cancel</button>
                  </div>
               </form>
