@@ -22,6 +22,33 @@ export default function BillHistory() {
     setLoading(false);
   }
 
+  function exportCSV() {
+    if (bills.length === 0) { alert('No records to export'); return; }
+    
+    const headers = ['Date', 'Time', 'Invoice Number', 'Payment Mode', 'Total Amount (INR)', 'Items'];
+    const rows = bills.map(b => {
+       const d = new Date(b.created_at);
+       const itemsStr = b.items?.map(i => `${i.name} (x${i.qty})`).join(', ') || '';
+       return [
+         d.toLocaleDateString(),
+         d.toLocaleTimeString(),
+         b.invoice_number,
+         b.payment_mode.toUpperCase(),
+         b.total_amount,
+         `"${itemsStr}"` // quote to escape commas
+       ].join(',');
+    });
+    
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `sales_report_${new Date().toLocaleDateString().replace(/\//g,'-')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
   async function deleteBill(id) {
     if (!confirm('Permanently delete this bill?')) return;
     const { error } = await supabase.from('bills').delete().eq('id', id);
@@ -35,9 +62,14 @@ export default function BillHistory() {
           <h2 style={{ fontSize: '28px', fontWeight: 900 }}>Sales Logs</h2>
           <p style={{ color: 'var(--text-dim)' }}>Detailed record of cloud invoices</p>
         </div>
-        <button onClick={fetchHistory} className="btn btn-ghost" style={{ fontSize: '13px', fontWeight: 700 }}>
-          <span>🔄</span> Refresh
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={exportCSV} className="btn" style={{ fontSize: '13px', fontWeight: 700, background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', borderRadius: '12px', padding: '8px 14px' }}>
+            <span>📊</span> Export CSV
+          </button>
+          <button onClick={fetchHistory} className="btn btn-ghost" style={{ fontSize: '13px', fontWeight: 700 }}>
+            <span>🔄</span> Refresh
+          </button>
+        </div>
       </div>
 
       {loading ? (

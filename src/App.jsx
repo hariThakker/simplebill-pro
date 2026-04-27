@@ -7,6 +7,7 @@ import BillHistory from './pages/BillHistory';
 import Settings from './pages/Settings';
 import Auth from './pages/Auth';
 import Staff from './pages/Staff';
+import Expenses from './pages/Expenses';
 import { connectPrinter, autoReconnect, isPrinterConnected } from './utils/printer';
 
 export default function App() {
@@ -133,6 +134,7 @@ export default function App() {
           <Route path="/pos" element={<QuickSale />} />
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/history" element={<BillHistory />} />
+          <Route path="/expenses" element={<Expenses />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/staff" element={<Staff />} />
         </Routes>
@@ -144,6 +146,7 @@ export default function App() {
         <Link to="/pos" className={`nav-btn ${location.pathname === '/pos' ? 'active' : ''}`}><span>⚡</span><span>POS</span></Link>
         <Link to="/inventory" className={`nav-btn ${location.pathname === '/inventory' ? 'active' : ''}`}><span>📦</span><span>Stock</span></Link>
         <Link to="/history" className={`nav-btn ${location.pathname === '/history' ? 'active' : ''}`}><span>📜</span><span>History</span></Link>
+        <Link to="/expenses" className={`nav-btn ${location.pathname === '/expenses' ? 'active' : ''}`}><span>💸</span><span>Costs</span></Link>
         {isOwner && <Link to="/staff" className={`nav-btn ${location.pathname === '/staff' ? 'active' : ''}`}><span>👥</span><span>Team</span></Link>}
         <Link to="/settings" className={`nav-btn ${location.pathname === '/settings' ? 'active' : ''}`}><span>⚙️</span><span>Setup</span></Link>
       </nav>
@@ -153,8 +156,9 @@ export default function App() {
 
 
 function Dashboard({ user }) {
-  const [stats, setStats] = useState({ t: 0, c: 0, o: 0, n: 0 });
+  const [stats, setStats] = useState({ t: 0, c: 0, o: 0, n: 0, e: 0 });
   const [chartData, setChartData] = useState([]);
+  const [lowStockItems, setLowStockItems] = useState([]);
 
   const load = async () => {
     const gid = localStorage.getItem('selectedGroupId');
@@ -197,7 +201,30 @@ function Dashboard({ user }) {
         }
       });
 
-      setStats({ t, c, o, n });
+      // Fetch Expenses
+      let e = 0;
+      const { data: expData, error: expError } = await supabase.from('expenses')
+        .select('amount, created_at')
+        .eq('group_id', gid)
+        .gte('created_at', last7Days.toISOString());
+      
+      if (expData && !expError) {
+        expData.forEach(exp => {
+           if (exp.created_at.split('T')[0] === todayIso) {
+             e += Number(exp.amount);
+           }
+        });
+      }
+
+      // Fetch Low Stock
+      const { data: invData } = await supabase.from('inventory')
+        .select('name, stock')
+        .eq('group_id', gid)
+        .lte('stock', 5)
+        .order('stock', { ascending: true });
+      if (invData) setLowStockItems(invData);
+
+      setStats({ t, c, o, n, e });
       setChartData(Object.values(dailyMap).reverse());
     }
   };
@@ -219,12 +246,41 @@ function Dashboard({ user }) {
       </div>
       
       <div className="card" style={{ background: 'var(--primary)', color: 'white', marginBottom: '20px', padding: '24px', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ opacity: 0.8, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Daily Revenue</div>
+        <div style={{ opacity: 0.8, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Daily Gross Revenue</div>
         <div style={{ fontSize: '40px', fontWeight: 900, margin: '4px 0' }}>₹{stats.t.toLocaleString()}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
           <div style={{ padding: '4px 10px', background: 'rgba(255,255,255,0.1)', borderRadius: '20px', fontSize: '11px', fontWeight: 600 }}>{stats.n} Transactions</div>
         </div>
       </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+        <div className="card" style={{ padding: '20px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+          <div style={{ color: 'var(--success)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Net Profit Today</div>
+          <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--success)' }}>₹{(stats.t - stats.e).toLocaleString()}</div>
+        </div>
+        <div className="card" style={{ padding: '20px', background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+          <div style={{ color: 'var(--danger)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Expenses Today</div>
+          <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--danger)' }}>₹{stats.e.toLocaleString()}</div>
+        </div>
+      </div>
+
+      {lowStockItems.length > 0 && (
+        <div className="card" style={{ padding: '20px', marginBottom: '24px', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239, 68, 68, 0.02)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+            <span style={{ fontSize: '18px' }}>⚠️</span>
+            <h3 style={{ fontSize: '15px', color: 'var(--danger)' }}>Low Stock Alerts</h3>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            {lowStockItems.slice(0, 6).map((item, idx) => (
+              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', background: 'var(--bg)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                <span style={{ fontWeight: 600 }}>{item.name}</span>
+                <span style={{ color: item.stock === 0 ? 'var(--danger)' : 'var(--accent)', fontWeight: 800 }}>{item.stock} left</span>
+              </div>
+            ))}
+          </div>
+          {lowStockItems.length > 6 && <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '12px', textAlign: 'center' }}>+ {lowStockItems.length - 6} more items low on stock</div>}
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
         <div className="card" style={{ padding: '20px' }}>

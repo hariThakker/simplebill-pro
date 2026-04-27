@@ -60,6 +60,15 @@ export default function QuickSale() {
     }]);
 
     if (!error) {
+      // Reduce stock
+      await Promise.all(billItems.map(async (item) => {
+        const { data: currentItem } = await supabase.from('inventory').select('stock').eq('id', item.id).single();
+        if (currentItem) {
+           await supabase.from('inventory').update({ stock: Math.max(0, currentItem.stock - item.qty) }).eq('id', item.id);
+        }
+      }));
+      window.dispatchEvent(new Event('groupChanged')); // Trigger inventory reload
+
       const { data: business } = await supabase.from('settings').select('*').eq('group_id', groupId).maybeSingle();
       const printedBill = generateBillContent(invoiceNumber, billItems, finalAmount, paymentMode, business || {});
       
