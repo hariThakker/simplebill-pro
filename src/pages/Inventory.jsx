@@ -6,6 +6,7 @@ export default function Inventory() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ name: '', price: '', stock: '' });
+  const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
     fetchInventory();
@@ -27,15 +28,41 @@ export default function Inventory() {
     const groupId = localStorage.getItem('selectedGroupId');
     if (!groupId) { alert('Select a group first'); return; }
 
-    const { error } = await supabase.from('inventory').insert([{
-      group_id: groupId, ...formData, price: Number(formData.price), stock: Number(formData.stock)
-    }]);
+    let error;
+    if (editingId) {
+      const { error: err } = await supabase.from('inventory').update({
+        name: formData.name, price: Number(formData.price), stock: Number(formData.stock)
+      }).eq('id', editingId);
+      error = err;
+    } else {
+      const { error: err } = await supabase.from('inventory').insert([{
+        group_id: groupId, ...formData, price: Number(formData.price), stock: Number(formData.stock)
+      }]);
+      error = err;
+    }
 
     if (!error) {
       setFormData({ name: '', price: '', stock: '' });
+      setEditingId(null);
       setShowForm(false);
       fetchInventory();
+    } else {
+      alert("Error saving item: " + error.message);
     }
+  }
+
+  async function handleDeleteItem(id) {
+    if (!confirm('Are you sure you want to delete this item?')) return;
+    const { error } = await supabase.from('inventory').delete().eq('id', id);
+    if (!error) fetchInventory();
+    else alert('Error deleting item: ' + error.message);
+  }
+
+  function handleEditItem(item) {
+    setFormData({ name: item.name, price: item.price, stock: item.stock });
+    setEditingId(item.id);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   return (
@@ -45,7 +72,10 @@ export default function Inventory() {
           <h2 style={{ fontSize: '28px', fontWeight: 900 }}>Inventory</h2>
           <p style={{ color: 'var(--text-dim)' }}>Manage your cloud products</p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className={`btn ${showForm ? 'btn-ghost' : 'btn-primary'}`} style={{ borderRadius: '14px' }}>
+        <button onClick={() => {
+          if (showForm) { setEditingId(null); setFormData({ name: '', price: '', stock: '' }); }
+          setShowForm(!showForm);
+        }} className={`btn ${showForm ? 'btn-ghost' : 'btn-primary'}`} style={{ borderRadius: '14px' }}>
           {showForm ? 'Cancel' : '+ Add Item'}
         </button>
       </div>
@@ -69,7 +99,7 @@ export default function Inventory() {
               </div>
             </div>
           </div>
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '24px', height: '52px', borderRadius: '12px' }}>Save to Cloud</button>
+          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '24px', height: '52px', borderRadius: '12px' }}>{editingId ? 'Update Item' : 'Save to Cloud'}</button>
         </form>
       )}
 
@@ -86,8 +116,12 @@ export default function Inventory() {
                   <div style={{ fontSize: '12px', color: 'var(--text-dim)', fontWeight: 600 }}>STOCK: {item.stock} units</div>
                 </div>
               </div>
-              <div style={{ textAlign: 'right' }}>
+              <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
                 <div style={{ fontWeight: 800, color: 'var(--accent)', fontSize: '20px' }}>₹{item.price}</div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => handleEditItem(item)} className="btn btn-ghost" style={{ fontSize: '12px', padding: '4px 8px' }}>Edit</button>
+                  <button onClick={() => handleDeleteItem(item.id)} className="btn btn-ghost" style={{ fontSize: '12px', padding: '4px 8px', color: 'var(--danger)' }}>Delete</button>
+                </div>
               </div>
             </div>
           ))}

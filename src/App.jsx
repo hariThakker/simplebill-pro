@@ -143,6 +143,7 @@ export default function App() {
         <Link to="/" className={`nav-btn ${location.pathname === '/' ? 'active' : ''}`}><span>📊</span><span>Dash</span></Link>
         <Link to="/pos" className={`nav-btn ${location.pathname === '/pos' ? 'active' : ''}`}><span>⚡</span><span>POS</span></Link>
         <Link to="/inventory" className={`nav-btn ${location.pathname === '/inventory' ? 'active' : ''}`}><span>📦</span><span>Stock</span></Link>
+        <Link to="/history" className={`nav-btn ${location.pathname === '/history' ? 'active' : ''}`}><span>📜</span><span>History</span></Link>
         {isOwner && <Link to="/staff" className={`nav-btn ${location.pathname === '/staff' ? 'active' : ''}`}><span>👥</span><span>Team</span></Link>}
         <Link to="/settings" className={`nav-btn ${location.pathname === '/settings' ? 'active' : ''}`}><span>⚙️</span><span>Setup</span></Link>
       </nav>

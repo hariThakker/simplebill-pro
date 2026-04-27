@@ -7,6 +7,7 @@ export default function QuickSale() {
   const [billItems, setBillItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCart, setShowCart] = useState(false);
+  const [discountApplied, setDiscountApplied] = useState(0);
 
   useEffect(() => {
     fetchInventory();
@@ -46,18 +47,19 @@ export default function QuickSale() {
 
   async function handleCheckout(paymentMode) {
     if (billItems.length === 0) return;
-    const totalAmount = billItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    const rawTotalAmount = billItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    const finalAmount = rawTotalAmount - (rawTotalAmount * (discountApplied / 100));
     const invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
     const groupId = localStorage.getItem('selectedGroupId');
     const printerMode = localStorage.getItem('printerMode') || 'ble';
     
     const { error } = await supabase.from('bills').insert([{
-      group_id: groupId, invoice_number: invoiceNumber, total_amount: totalAmount, payment_mode: paymentMode, items: billItems
+      group_id: groupId, invoice_number: invoiceNumber, total_amount: finalAmount, payment_mode: paymentMode, items: billItems
     }]);
 
     if (!error) {
       const { data: business } = await supabase.from('settings').select('*').eq('group_id', groupId).maybeSingle();
-      const printedBill = generateBillContent(invoiceNumber, billItems, totalAmount, paymentMode, business || {});
+      const printedBill = generateBillContent(invoiceNumber, billItems, finalAmount, paymentMode, business || {});
       
       if (printerMode === 'ble') {
         sendToPrinter(printedBill).then(sentOk => { if(!sentOk) fallbackNativePrint(printedBill); });
@@ -74,10 +76,40 @@ export default function QuickSale() {
     setBillItems([]);
     setShowCart(false);
     setLastBill(null);
+    setDiscountApplied(0);
   };
 
-  const totalAmount = billItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const rawTotalAmount = billItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const totalAmount = rawTotalAmount - (rawTotalAmount * (discountApplied / 100));
   const totalQty = billItems.reduce((sum, item) => sum + item.qty, 0);
+
+  const [showWheel, setShowWheel] = useState(false);
+  const [spinning, setSpinning] = useState(false);
+  const [wheelRotation, setWheelRotation] = useState(0);
+
+  const spinWheel = () => {
+    if (spinning) return;
+    setSpinning(true);
+    const rates = (localStorage.getItem('discountRates') || '0,5,10,15,20,25').split(',').map(Number);
+    const numSlices = rates.length;
+    const sliceAngle = 360 / numSlices;
+    
+    // Choose a random slice to land on
+    const randomIndex = Math.floor(Math.random() * numSlices);
+    const targetDiscount = rates[randomIndex];
+    
+    // Calculate rotation to land exactly in the middle of the selected slice
+    const extraSpins = 5;
+    const targetRotation = (extraSpins * 360) + (360 - (randomIndex * sliceAngle)) - (sliceAngle / 2);
+    
+    setWheelRotation(prev => prev + targetRotation);
+
+    setTimeout(() => {
+      setDiscountApplied(targetDiscount);
+      setSpinning(false);
+      setTimeout(() => setShowWheel(false), 1500);
+    }, 4000); // 4s spin duration
+  };
 
   const CartContent = () => (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -113,10 +145,21 @@ export default function QuickSale() {
       </div>
       
       <div style={{ borderTop: '2px dashed var(--border)', paddingTop: '20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '22px', fontWeight: 800, marginBottom: '24px' }}>
+        {discountApplied > 0 && (
+           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 600, color: 'var(--success)', marginBottom: '8px' }}>
+             <span>Discount ({discountApplied}%)</span>
+             <span>-₹{(rawTotalAmount * (discountApplied / 100)).toLocaleString()}</span>
+           </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '22px', fontWeight: 800, marginBottom: '16px' }}>
           <span>Total</span>
           <span style={{ color: 'var(--accent)' }}>₹{totalAmount.toLocaleString()}</span>
         </div>
+        
+        <button onClick={() => setShowWheel(true)} className="btn btn-ghost" style={{ width: '100%', marginBottom: '16px', borderRadius: '12px', border: '1px solid var(--accent)', color: 'var(--accent)', fontWeight: 800 }}>
+          🎡 Spin for Discount
+        </button>
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
           <button onClick={() => handleCheckout('cash')} className="btn btn-success" style={{ height: '56px', borderRadius: '16px' }}>
             <span>💵</span> Cash
@@ -186,6 +229,42 @@ export default function QuickSale() {
             <CartContent />
           </div>
         </>
+      )}
+
+      {/* Wagon Wheel Modal */}
+      {showWheel && (
+        <div className="cart-drawer-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 1000 }}>
+          <div className="card page-transition" style={{ maxWidth: '400px', width: '100%', padding: '32px', position: 'relative', textAlign: 'center', overflow: 'hidden' }}>
+            <button onClick={() => !spinning && setShowWheel(false)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', fontSize: '20px', cursor: spinning ? 'not-allowed' : 'pointer', opacity: spinning ? 0.5 : 1 }}>✕</button>
+            <h3 style={{ fontSize: '24px', marginBottom: '8px' }}>Lucky Spin! 🎡</h3>
+            <p style={{ color: 'var(--text-dim)', marginBottom: '32px' }}>Spin to reveal customer discount.</p>
+            
+            <div style={{ position: 'relative', width: '250px', height: '250px', margin: '0 auto', marginBottom: '32px' }}>
+              <div style={{ position: 'absolute', top: '-15px', left: '50%', transform: 'translateX(-50%)', width: '0', height: '0', borderLeft: '15px solid transparent', borderRight: '15px solid transparent', borderTop: '25px solid var(--danger)', zIndex: 10 }} />
+              <div style={{
+                width: '100%', height: '100%', borderRadius: '50%', border: '8px solid var(--border)',
+                transition: 'transform 4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                transform: `rotate(${wheelRotation}deg)`,
+                background: 'conic-gradient(' + (localStorage.getItem('discountRates') || '0,5,10,15,20,25').split(',').map((r, i, arr) => `hsl(${i * 360/arr.length}, 70%, 60%) ${i * 360/arr.length}deg ${(i+1) * 360/arr.length}deg`).join(', ') + ')'
+              }}>
+                {(localStorage.getItem('discountRates') || '0,5,10,15,20,25').split(',').map((r, i, arr) => (
+                  <div key={i} style={{ position: 'absolute', top: '50%', left: '50%', width: '50%', transformOrigin: '0% 50%', transform: `translateY(-50%) rotate(${(i * 360/arr.length) + (180/arr.length)}deg)`, textAlign: 'right', paddingRight: '20px', color: 'white', fontWeight: 900, fontSize: '18px', textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}>
+                    {r}%
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button onClick={spinWheel} disabled={spinning} className="btn btn-primary" style={{ width: '100%', height: '56px', borderRadius: '16px', fontSize: '18px' }}>
+              {spinning ? 'Spinning...' : 'SPIN NOW'}
+            </button>
+            {discountApplied > 0 && !spinning && (
+               <div style={{ marginTop: '16px', fontSize: '18px', fontWeight: 800, color: 'var(--success)', animation: 'fadeIn 0.5s ease' }}>
+                 Won {discountApplied}% Discount! 🎉
+               </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Digital Receipt Modal */}

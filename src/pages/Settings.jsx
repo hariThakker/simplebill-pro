@@ -16,6 +16,7 @@ export default function Settings() {
     custom_message: '',
     printer_mode: 'ble' // 'ble' or 'digital'
   });
+  const [discountRates, setDiscountRates] = useState(localStorage.getItem('discountRates') || '5,10,15,20,25');
 
   useEffect(() => {
     fetchSettings();
@@ -73,6 +74,21 @@ export default function Settings() {
     }
   }
 
+  async function handleDeleteGroup(id, name) {
+    if (!confirm(`Are you sure you want to delete the group "${name}"? This action cannot be undone.`)) return;
+    const { error } = await supabase.from('groups').delete().eq('id', id);
+    if (!error) {
+      fetchGroups();
+      window.dispatchEvent(new Event('groupsUpdated'));
+      if (localStorage.getItem('selectedGroupId') === id) {
+         localStorage.removeItem('selectedGroupId');
+         window.dispatchEvent(new Event('groupChanged'));
+      }
+    } else {
+      alert('Error deleting group: ' + error.message);
+    }
+  }
+
   async function handleSave(e) {
     e.preventDefault();
     setLoading(true);
@@ -103,6 +119,7 @@ export default function Settings() {
     if (!error) {
       setSaved(true);
       localStorage.setItem('printerMode', formData.printer_mode);
+      localStorage.setItem('discountRates', discountRates);
       setTimeout(() => setSaved(false), 3000);
     } else {
       alert('Error saving settings: ' + error.message);
@@ -137,8 +154,9 @@ export default function Settings() {
             <label style={{ display: 'block', fontWeight: 700, fontSize: '11px', color: 'var(--text-dim)', marginBottom: '12px', textTransform: 'uppercase' }}>Available Groups</label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {groups.map(g => (
-                <div key={g.id} style={{ background: 'var(--bg)', color: 'var(--text)', padding: '6px 14px', border: '1px solid var(--border)', borderRadius: '10px', fontSize: '14px', fontWeight: 600 }}>
+                <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg)', color: 'var(--text)', padding: '6px 14px', border: '1px solid var(--border)', borderRadius: '10px', fontSize: '14px', fontWeight: 600 }}>
                   {g.name}
+                  <button type="button" onClick={() => handleDeleteGroup(g.id, g.name)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '0 4px', fontSize: '16px', fontWeight: 'bold' }}>×</button>
                 </div>
               ))}
             </div>
@@ -229,6 +247,19 @@ export default function Settings() {
             </div>
             <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '8px' }}>
               {formData.printer_mode === 'ble' ? 'Bills will be sent directly to your connected thermal printer.' : 'A digital receipt will be shown on screen for you to share.'}
+            </p>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontWeight: 700, fontSize: '13px', color: 'var(--text-dim)', marginBottom: '8px' }}>DISCOUNT WHEEL RATES (%)</label>
+            <input 
+              className="input-v2"
+              value={discountRates}
+              onChange={e => setDiscountRates(e.target.value)}
+              placeholder="e.g. 5,10,15,20,25"
+            />
+            <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '8px' }}>
+              Comma-separated percentages for the Wagon Wheel in Quick POS.
             </p>
           </div>
 
