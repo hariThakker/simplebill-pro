@@ -7,7 +7,8 @@ export default function QuickSale() {
   const [billItems, setBillItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCart, setShowCart] = useState(false);
-  const [discountApplied, setDiscountApplied] = useState(0);
+  const [discountPercentage, setDiscountPercentage] = useState(0);
+  const [discountAmount, setDiscountAmount] = useState(0);
 
   useEffect(() => {
     fetchInventory();
@@ -48,7 +49,8 @@ export default function QuickSale() {
   async function handleCheckout(paymentMode) {
     if (billItems.length === 0) return;
     const rawTotalAmount = billItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
-    const finalAmount = rawTotalAmount - (rawTotalAmount * (discountApplied / 100));
+    const discountValue = (rawTotalAmount * (discountPercentage / 100)) + discountAmount;
+    const finalAmount = Math.max(0, rawTotalAmount - discountValue);
     const invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
     const groupId = localStorage.getItem('selectedGroupId');
     const printerMode = localStorage.getItem('printerMode') || 'ble';
@@ -76,11 +78,13 @@ export default function QuickSale() {
     setBillItems([]);
     setShowCart(false);
     setLastBill(null);
-    setDiscountApplied(0);
+    setDiscountPercentage(0);
+    setDiscountAmount(0);
   };
 
   const rawTotalAmount = billItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
-  const totalAmount = rawTotalAmount - (rawTotalAmount * (discountApplied / 100));
+  const discountValue = (rawTotalAmount * (discountPercentage / 100)) + discountAmount;
+  const totalAmount = Math.max(0, rawTotalAmount - discountValue);
   const totalQty = billItems.reduce((sum, item) => sum + item.qty, 0);
 
   const [showWheel, setShowWheel] = useState(false);
@@ -105,7 +109,7 @@ export default function QuickSale() {
     setWheelRotation(prev => prev + targetRotation);
 
     setTimeout(() => {
-      setDiscountApplied(targetDiscount);
+      setDiscountPercentage(targetDiscount);
       setSpinning(false);
       setTimeout(() => setShowWheel(false), 1500);
     }, 4000); // 4s spin duration
@@ -145,20 +149,33 @@ export default function QuickSale() {
       </div>
       
       <div style={{ borderTop: '2px dashed var(--border)', paddingTop: '20px' }}>
-        {discountApplied > 0 && (
-           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 600, color: 'var(--success)', marginBottom: '8px' }}>
-             <span>Discount ({discountApplied}%)</span>
-             <span>-₹{(rawTotalAmount * (discountApplied / 100)).toLocaleString()}</span>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+          <input 
+            type="number" 
+            placeholder="Flat Discount (₹)" 
+            className="input-v2" 
+            style={{ flex: 1 }}
+            value={discountAmount || ''}
+            onChange={e => setDiscountAmount(Number(e.target.value))}
+          />
+          <button onClick={() => setShowWheel(true)} className="btn btn-ghost" style={{ padding: '0 16px', borderRadius: '12px', border: '1px solid var(--accent)', color: 'var(--accent)', fontWeight: 800 }}>
+            🎡 Spin Wheel
+          </button>
+        </div>
+
+        {(discountPercentage > 0 || discountAmount > 0) && (
+           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', fontWeight: 600, color: 'var(--success)', marginBottom: '8px' }}>
+             <span>
+               Discount {discountPercentage > 0 ? `(${discountPercentage}%)` : ''} 
+               <button onClick={() => { setDiscountPercentage(0); setDiscountAmount(0); }} style={{ marginLeft: '8px', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>✕ Remove</button>
+             </span>
+             <span>-₹{((rawTotalAmount * (discountPercentage / 100)) + discountAmount).toLocaleString()}</span>
            </div>
         )}
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '22px', fontWeight: 800, marginBottom: '16px' }}>
           <span>Total</span>
           <span style={{ color: 'var(--accent)' }}>₹{totalAmount.toLocaleString()}</span>
         </div>
-        
-        <button onClick={() => setShowWheel(true)} className="btn btn-ghost" style={{ width: '100%', marginBottom: '16px', borderRadius: '12px', border: '1px solid var(--accent)', color: 'var(--accent)', fontWeight: 800 }}>
-          🎡 Spin for Discount
-        </button>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
           <button onClick={() => handleCheckout('cash')} className="btn btn-success" style={{ height: '56px', borderRadius: '16px' }}>
@@ -258,9 +275,9 @@ export default function QuickSale() {
             <button onClick={spinWheel} disabled={spinning} className="btn btn-primary" style={{ width: '100%', height: '56px', borderRadius: '16px', fontSize: '18px' }}>
               {spinning ? 'Spinning...' : 'SPIN NOW'}
             </button>
-            {discountApplied > 0 && !spinning && (
+            {discountPercentage > 0 && !spinning && (
                <div style={{ marginTop: '16px', fontSize: '18px', fontWeight: 800, color: 'var(--success)', animation: 'fadeIn 0.5s ease' }}>
-                 Won {discountApplied}% Discount! 🎉
+                 Won {discountPercentage}% Discount! 🎉
                </div>
             )}
           </div>
