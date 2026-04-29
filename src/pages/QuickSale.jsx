@@ -78,7 +78,7 @@ export default function QuickSale() {
         sendToPrinter(printedBill).then(sentOk => { if(!sentOk) fallbackNativePrint(printedBill); });
         finishCheckout();
       } else {
-        const logoUrl = localStorage.getItem('logoUrl') || '';
+        const logoUrl = business ? business.logo_url : '';
         setLastBill({ 
           content: printedBill, 
           invoiceNumber, 

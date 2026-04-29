@@ -21,7 +21,6 @@ export default function Settings() {
 
   useEffect(() => {
     setDiscountRates(localStorage.getItem('discountRates') || '5,10,15,20,25');
-    setLogoUrl(localStorage.getItem('logoUrl') || '');
     fetchSettings();
     fetchGroups();
     window.addEventListener('groupChanged', fetchSettings);
@@ -50,12 +49,15 @@ export default function Settings() {
         phone: data.phone || '',
         gst_number: data.gst_number || '',
         custom_message: data.custom_message || '',
-        printer_mode: data.printer_mode || 'ble'
+        printer_mode: data.printer_mode || 'ble',
+        logo_url: data.logo_url || ''
       });
+      setLogoUrl(data.logo_url || '');
       // Save printer mode to local storage for quick access in POS
       localStorage.setItem('printerMode', data.printer_mode || 'ble');
     } else {
-      setFormData({ business_name: '', location: '', phone: '', gst_number: '', custom_message: '', printer_mode: 'ble' });
+      setFormData({ business_name: '', location: '', phone: '', gst_number: '', custom_message: '', printer_mode: 'ble', logo_url: '' });
+      setLogoUrl('');
     }
   }
 
@@ -105,16 +107,18 @@ export default function Settings() {
       .maybeSingle();
 
     let error;
+    const payload = { ...formData, logo_url: logoUrl };
+    
     if (existing) {
       const { error: err } = await supabase
         .from('settings')
-        .update(formData)
+        .update(payload)
         .eq('group_id', groupId);
       error = err;
     } else {
       const { error: err } = await supabase
         .from('settings')
-        .insert([{ ...formData, group_id: groupId }]);
+        .insert([{ ...payload, group_id: groupId }]);
       error = err;
     }
 
@@ -123,7 +127,6 @@ export default function Settings() {
       setSaved(true);
       localStorage.setItem('printerMode', formData.printer_mode);
       localStorage.setItem('discountRates', discountRates);
-      localStorage.setItem('logoUrl', logoUrl);
       setTimeout(() => setSaved(false), 3000);
     } else {
       alert('Error saving settings: ' + error.message);
