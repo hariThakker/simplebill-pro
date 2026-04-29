@@ -174,22 +174,30 @@ function Dashboard({ user }) {
       .gte('created_at', last7Days.toISOString());
 
     if (data) {
+      const getLocalYMD = (d) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+
       // Current day stats
       let t=0, c=0, o=0, n=0;
-      const todayIso = today.toISOString().split('T')[0];
+      const todayYMD = getLocalYMD(new Date());
       
       // Weekly aggregation for graph
       const dailyMap = {};
       for (let i = 0; i < 7; i++) {
         const d = new Date(); d.setDate(today.getDate() - i);
-        dailyMap[d.toISOString().split('T')[0]] = { cash: 0, online: 0, date: d.toLocaleDateString('en-IN', { weekday: 'short' }) };
+        dailyMap[getLocalYMD(d)] = { cash: 0, online: 0, date: d.toLocaleDateString('en-IN', { weekday: 'short' }) };
       }
 
       data.forEach(b => { 
-        const bDate = b.created_at.split('T')[0];
+        const bDateObj = new Date(b.created_at);
+        const bDate = getLocalYMD(bDateObj);
         const amt = Number(b.total_amount);
         
-        if (bDate === todayIso) {
+        if (bDate === todayYMD) {
           t += amt;
           if (b.payment_mode === 'cash') c += amt; else o += amt;
           n++;
@@ -210,7 +218,8 @@ function Dashboard({ user }) {
       
       if (expData && !expError) {
         expData.forEach(exp => {
-           if (exp.created_at.split('T')[0] === todayIso) {
+           const expDateObj = new Date(exp.created_at);
+           if (getLocalYMD(expDateObj) === todayYMD) {
              e += Number(exp.amount);
            }
         });
