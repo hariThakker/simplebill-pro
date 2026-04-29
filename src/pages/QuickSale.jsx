@@ -259,7 +259,7 @@ export default function QuickSale() {
 
       {/* Wagon Wheel Modal */}
       {showWheel && (
-        <div className="cart-drawer-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 1000 }}>
+        <div className="cart-drawer-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 1300 }}>
           <div className="card page-transition" style={{ maxWidth: '400px', width: '100%', padding: '32px', position: 'relative', textAlign: 'center', overflow: 'hidden' }}>
             <button onClick={() => !spinning && setShowWheel(false)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', fontSize: '20px', cursor: spinning ? 'not-allowed' : 'pointer', opacity: spinning ? 0.5 : 1 }}>✕</button>
             <h3 style={{ fontSize: '24px', marginBottom: '8px' }}>Lucky Spin! 🎡</h3>
@@ -295,7 +295,7 @@ export default function QuickSale() {
 
       {/* Digital Receipt Modal */}
       {lastBill && (
-        <div className="cart-drawer-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div className="cart-drawer-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 1300 }}>
           <div className="card page-transition" style={{ maxWidth: '400px', width: '100%', padding: '24px', position: 'relative' }}>
              <button onClick={finishCheckout} style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }}>✕</button>
              <div style={{ textAlign: 'center', marginBottom: '20px' }}>

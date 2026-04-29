@@ -23,11 +23,11 @@ export default function Expenses() {
       .select('*')
       .eq('group_id', groupId)
       .order('created_at', { ascending: false });
-    
+
     if (error) {
-       setDbError(true);
-       setLoading(false);
-       return;
+      setDbError(true);
+      setLoading(false);
+      return;
     }
     setDbError(false);
     setExpenses(data || []);
@@ -78,17 +78,17 @@ export default function Expenses() {
 
       {dbError && (
         <div className="card" style={{ padding: '24px', background: 'rgba(239, 68, 68, 0.05)', border: '1px solid var(--danger)', textAlign: 'center' }}>
-           <h3 style={{ color: 'var(--danger)', marginBottom: '12px' }}>Database Setup Required</h3>
-           <p style={{ color: 'var(--text-dim)', fontSize: '14px', marginBottom: '16px' }}>To use the Expense tracking feature, please run this SQL command in your Supabase SQL Editor:</p>
-           <pre style={{ background: 'var(--bg)', padding: '16px', borderRadius: '12px', fontSize: '12px', color: 'var(--text)', textAlign: 'left', overflowX: 'auto' }}>
-{`CREATE TABLE expenses (
+          <h3 style={{ color: 'var(--danger)', marginBottom: '12px' }}>Database Setup Required</h3>
+          <p style={{ color: 'var(--text-dim)', fontSize: '14px', marginBottom: '16px' }}>To use the Expense tracking feature, please run this SQL command in your Supabase SQL Editor:</p>
+          <pre style={{ background: 'var(--bg)', padding: '16px', borderRadius: '12px', fontSize: '12px', color: 'var(--text)', textAlign: 'left', overflowX: 'auto' }}>
+            {`CREATE TABLE expenses (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
   description TEXT NOT NULL,
   amount NUMERIC NOT NULL,
   created_at TIMESTAMPTZ DEFAULT now()
 );`}
-           </pre>
+          </pre>
         </div>
       )}
 
@@ -98,11 +98,11 @@ export default function Expenses() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
             <div>
               <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '6px', display: 'block' }}>DESCRIPTION</label>
-              <input required className="input-v2" placeholder="e.g. Rent, Electricity, Supplies" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
+              <input required className="input-v2" placeholder="e.g. Rent, Electricity, Supplies" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} />
             </div>
             <div>
               <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '6px', display: 'block' }}>AMOUNT (₹)</label>
-              <input required type="number" className="input-v2" placeholder="0.00" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} />
+              <input required type="number" className="input-v2" placeholder="0.00" value={formData.amount} onChange={e => setFormData({ ...formData, amount: e.target.value })} />
             </div>
           </div>
           <button type="submit" className="btn" style={{ background: 'var(--danger)', color: 'white', width: '100%', marginTop: '24px', height: '52px', borderRadius: '12px', fontSize: '16px' }}>Log Expense</button>
