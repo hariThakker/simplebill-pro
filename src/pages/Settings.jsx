@@ -209,16 +209,41 @@ export default function Settings() {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontWeight: 700, fontSize: '13px', color: 'var(--text-dim)', marginBottom: '8px' }}>COMPANY LOGO URL</label>
-            <input 
-              className="input-v2"
-              value={logoUrl}
-              onChange={e => setLogoUrl(e.target.value)}
-              placeholder="https://example.com/logo.png"
-            />
-            <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '8px' }}>
-              Paste a direct image link (PNG/JPG) for your digital receipts.
-            </p>
+            <label style={{ display: 'block', fontWeight: 700, fontSize: '13px', color: 'var(--text-dim)', marginBottom: '8px' }}>COMPANY LOGO</label>
+            {logoUrl ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', background: 'var(--bg)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                <img src={logoUrl} alt="Logo Preview" style={{ width: '60px', height: '60px', objectFit: 'contain', borderRadius: '8px', background: 'white' }} />
+                <button type="button" onClick={() => setLogoUrl('')} className="btn btn-ghost" style={{ color: 'var(--danger)', fontSize: '12px', padding: '6px 12px' }}>
+                  Remove Logo
+                </button>
+              </div>
+            ) : (
+              <div>
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      if (file.size > 1024 * 1024) { // Limit to 1MB
+                        alert("Please select an image smaller than 1MB");
+                        return;
+                      }
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setLogoUrl(reader.result);
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="input-v2"
+                  style={{ padding: '10px' }}
+                />
+                <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '8px' }}>
+                  Upload a small image (PNG/JPG, max 1MB) for your digital receipts.
+                </p>
+              </div>
+            )}
           </div>
 
           <div>
