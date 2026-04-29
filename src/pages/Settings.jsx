@@ -16,9 +16,12 @@ export default function Settings() {
     custom_message: '',
     printer_mode: 'ble' // 'ble' or 'digital'
   });
-  const [discountRates, setDiscountRates] = useState(localStorage.getItem('discountRates') || '5,10,15,20,25');
+  const [logoUrl, setLogoUrl] = useState('');
+  const [discountRates, setDiscountRates] = useState('');
 
   useEffect(() => {
+    setDiscountRates(localStorage.getItem('discountRates') || '5,10,15,20,25');
+    setLogoUrl(localStorage.getItem('logoUrl') || '');
     fetchSettings();
     fetchGroups();
     window.addEventListener('groupChanged', fetchSettings);
@@ -120,6 +123,7 @@ export default function Settings() {
       setSaved(true);
       localStorage.setItem('printerMode', formData.printer_mode);
       localStorage.setItem('discountRates', discountRates);
+      localStorage.setItem('logoUrl', logoUrl);
       setTimeout(() => setSaved(false), 3000);
     } else {
       alert('Error saving settings: ' + error.message);
@@ -202,6 +206,19 @@ export default function Settings() {
                 placeholder="Optional"
               />
             </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontWeight: 700, fontSize: '13px', color: 'var(--text-dim)', marginBottom: '8px' }}>COMPANY LOGO URL</label>
+            <input 
+              className="input-v2"
+              value={logoUrl}
+              onChange={e => setLogoUrl(e.target.value)}
+              placeholder="https://example.com/logo.png"
+            />
+            <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '8px' }}>
+              Paste a direct image link (PNG/JPG) for your digital receipts.
+            </p>
           </div>
 
           <div>

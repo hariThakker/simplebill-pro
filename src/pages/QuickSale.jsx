@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import { generateBillContent, sendToPrinter, fallbackNativePrint } from '../utils/printer';
+import html2canvas from 'html2canvas';
 
 export default function QuickSale() {
   const [items, setItems] = useState([]);
@@ -9,6 +10,7 @@ export default function QuickSale() {
   const [showCart, setShowCart] = useState(false);
   const [discountPercentage, setDiscountPercentage] = useState(0);
   const [discountAmount, setDiscountAmount] = useState(0);
+  const receiptRef = useRef(null);
 
   useEffect(() => {
     fetchInventory();
@@ -76,7 +78,18 @@ export default function QuickSale() {
         sendToPrinter(printedBill).then(sentOk => { if(!sentOk) fallbackNativePrint(printedBill); });
         finishCheckout();
       } else {
-        setLastBill({ content: printedBill, invoiceNumber });
+        const logoUrl = localStorage.getItem('logoUrl') || '';
+        setLastBill({ 
+          content: printedBill, 
+          invoiceNumber, 
+          billItems: [...billItems], 
+          finalAmount, 
+          paymentMode, 
+          business: business || {},
+          subtotal: rawTotalAmount,
+          discount: discountValue,
+          logoUrl
+        });
       }
     } else {
       alert("Error saving bill: " + error.message);
@@ -296,26 +309,102 @@ export default function QuickSale() {
       {/* Digital Receipt Modal */}
       {lastBill && (
         <div className="cart-drawer-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 1300 }}>
-          <div className="card page-transition" style={{ maxWidth: '400px', width: '100%', padding: '24px', position: 'relative' }}>
+          <div className="card page-transition" style={{ maxWidth: '400px', width: '100%', padding: '24px', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
              <button onClick={finishCheckout} style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }}>✕</button>
              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
                <div style={{ width: '60px', height: '60px', background: 'rgba(var(--success-raw), 0.1)', color: 'var(--success)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', margin: '0 auto 16px' }}>✓</div>
                <h3 style={{ fontSize: '20px' }}>Bill Generated!</h3>
-               <p style={{ color: 'var(--text-dim)', fontSize: '14px' }}>#{lastBill.invoiceNumber}</p>
              </div>
              
-             <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', padding: '16px', borderRadius: '12px', marginBottom: '24px', maxHeight: '300px', overflowY: 'auto' }}>
-               <pre style={{ margin: 0, fontSize: '11px', color: 'var(--text)', fontFamily: 'monospace', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
-                 {lastBill.content}
-               </pre>
+             {/* HTML Receipt Template */}
+             <div ref={receiptRef} style={{ background: '#fff', color: '#000', padding: '20px', borderRadius: '12px', marginBottom: '24px', border: '1px solid #eee', fontSize: '12px', fontFamily: 'sans-serif' }}>
+                <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                  {lastBill.logoUrl && <img src={lastBill.logoUrl} alt="Logo" style={{ maxHeight: '60px', margin: '0 auto 8px', display: 'block' }} />}
+                  <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>{lastBill.business.business_name || 'SIMPLEBILL PRO'}</h2>
+                  {lastBill.business.location && <div style={{ color: '#555', marginTop: '4px' }}>{lastBill.business.location}</div>}
+                  {lastBill.business.phone && <div style={{ color: '#555' }}>Tel: {lastBill.business.phone}</div>}
+                  {lastBill.business.gst_number && <div style={{ color: '#555' }}>GST: {lastBill.business.gst_number}</div>}
+                </div>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #ccc', borderBottom: '1px dashed #ccc', padding: '8px 0', marginBottom: '16px' }}>
+                  <div>
+                    <div><strong>Invoice:</strong> #{lastBill.invoiceNumber}</div>
+                    <div><strong>Date:</strong> {new Date().toLocaleDateString('en-IN')}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div><strong>Mode:</strong> {lastBill.paymentMode.toUpperCase()}</div>
+                  </div>
+                </div>
+
+                <table style={{ width: '100%', marginBottom: '16px', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #eee' }}>
+                      <th style={{ textAlign: 'left', paddingBottom: '4px' }}>Item</th>
+                      <th style={{ textAlign: 'center', paddingBottom: '4px' }}>Qty</th>
+                      <th style={{ textAlign: 'right', paddingBottom: '4px' }}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lastBill.billItems.map((item, idx) => (
+                      <tr key={idx}>
+                        <td style={{ padding: '6px 0' }}>{item.name}<br/><span style={{color:'#888', fontSize:'10px'}}>₹{item.price}</span></td>
+                        <td style={{ textAlign: 'center', padding: '6px 0' }}>{item.qty}</td>
+                        <td style={{ textAlign: 'right', padding: '6px 0' }}>₹{(item.price * item.qty).toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <div style={{ borderTop: '1px dashed #ccc', paddingTop: '8px', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span>Subtotal</span>
+                    <span>₹{lastBill.subtotal.toFixed(2)}</span>
+                  </div>
+                  {lastBill.discount > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', color: '#e63946' }}>
+                      <span>Discount</span>
+                      <span>-₹{lastBill.discount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '16px', marginTop: '8px', borderTop: '1px solid #eee', paddingTop: '8px' }}>
+                    <span>Total Amount</span>
+                    <span>₹{lastBill.finalAmount.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {lastBill.business.custom_message && (
+                  <div style={{ textAlign: 'center', color: '#555', fontStyle: 'italic', borderTop: '1px dashed #ccc', paddingTop: '12px', whiteSpace: 'pre-wrap' }}>
+                    {lastBill.business.custom_message}
+                  </div>
+                )}
              </div>
 
              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-               <button onClick={() => {
-                 const text = encodeURIComponent(lastBill.content);
-                 window.open(`https://wa.me/?text=${text}`, '_blank');
+               <button onClick={async () => {
+                 if (!receiptRef.current) return;
+                 const canvas = await html2canvas(receiptRef.current, { scale: 2, useCORS: true });
+                 canvas.toBlob(async (blob) => {
+                   if (!blob) return;
+                   const file = new File([blob], `receipt_${lastBill.invoiceNumber}.png`, { type: 'image/png' });
+                   if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                     try {
+                       await navigator.share({
+                         title: 'Receipt',
+                         text: `Here is your receipt for order #${lastBill.invoiceNumber}`,
+                         files: [file]
+                       });
+                     } catch(err) { console.error(err); }
+                   } else {
+                     const url = URL.createObjectURL(blob);
+                     const a = document.createElement('a');
+                     a.href = url;
+                     a.download = file.name;
+                     a.click();
+                     URL.revokeObjectURL(url);
+                   }
+                 }, 'image/png');
                }} className="btn btn-success" style={{ width: '100%', borderRadius: '14px' }}>
-                 Share on WhatsApp
+                 <span>📤</span> Share Receipt (Image)
                </button>
                <button onClick={finishCheckout} className="btn btn-ghost" style={{ width: '100%' }}>
                  Done & Close
