@@ -628,7 +628,6 @@ function Dashboard({ user, currentGroup, businessSettings }) {
         tokenNumber: bill.token_number || String(bill.id || '1').slice(-2).padStart(2, '0'),
         invoiceNumber: bill.id?.slice(0, 8) || '0000',
         items,
-        orderType: bill.order_type || 'Takeaway / Pickup',
         business: { ...(businessSettings || {}), logo_url: effectiveLogo },
         date: bill.created_at
       });

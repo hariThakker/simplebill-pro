@@ -688,7 +688,7 @@ export function getNextTokenNumber(groupId) {
   return String(seq).padStart(2, '0');
 }
 
-export function generateTokenContent(tokenNumber, invoiceNumber, items = [], orderType = 'Takeaway / Pickup', business = {}) {
+export function generateTokenContent(tokenNumber, invoiceNumber, items = [], business = {}) {
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-IN');
   const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
@@ -711,9 +711,6 @@ export function generateTokenContent(tokenNumber, invoiceNumber, items = [], ord
 
   // Huge Token Hero Number: e.g. #06 (Matching on-screen card)
   token += `${BIG_TEXT}${BOLD_ON}#${tokenNumber}${NORMAL_TEXT}${BOLD_OFF}\n\n`;
-
-  // Order Type Pill: e.g. [ DINE-IN ] (Matching on-screen card)
-  token += `${BOLD_ON}[ ${orderType.toUpperCase()} ]${BOLD_OFF}\n\n`;
 
   // Metadata (Left, matching on-screen card)
   token += `${LEFT}`;
@@ -755,7 +752,6 @@ export function printOrderToken(options = {}) {
     tokenNumber = '01',
     invoiceNumber = '0000',
     items = [],
-    orderType = 'Counter Pickup',
     business = {},
     date = new Date(),
     logoUrl = ''
@@ -844,16 +840,6 @@ export function printOrderToken(options = {}) {
             margin: 10px 0;
             letter-spacing: -1px;
           }
-          .token-type-pill {
-            display: inline-block;
-            font-size: 11px;
-            font-weight: 800;
-            border: 1.5px solid #000000;
-            padding: 2px 10px;
-            border-radius: 4px;
-            text-transform: uppercase;
-            margin-top: 4px;
-          }
           .token-meta {
             display: flex;
             justify-content: space-between;
@@ -923,7 +909,6 @@ export function printOrderToken(options = {}) {
           <div class="store-name">${business?.business_name || 'FOOD COUNTER'}</div>
           <div class="token-badge-title">Pickup Order Token</div>
           <div class="token-number-hero">#${tokenNumber}</div>
-          <div class="token-type-pill">${orderType}</div>
         </div>
 
         <div class="token-meta">
@@ -980,8 +965,7 @@ export function printCombinedReceiptAndToken(receiptOptions = {}, tokenOptions =
   } = receiptOptions;
 
   const {
-    tokenNumber = '01',
-    orderType = 'Counter Pickup'
+    tokenNumber = '01'
   } = tokenOptions;
 
   const gid = localStorage.getItem('selectedGroupId');
@@ -1294,7 +1278,6 @@ export function printCombinedReceiptAndToken(receiptOptions = {}, tokenOptions =
           <div class="business-title">${business?.business_name || 'FOOD COUNTER TOKEN'}</div>
           <div class="token-badge-title">Kitchen / Counter Order</div>
           <div class="token-number-hero">#${tokenNumber}</div>
-          <div class="token-type-pill">${orderType}</div>
         </div>
 
         <div class="token-meta">

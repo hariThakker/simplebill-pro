@@ -355,7 +355,6 @@ export default function BillHistory() {
                               tokenNumber: bill.token_number || String(bill.invoice_number || bill.id || '1').slice(-2).padStart(2, '0'),
                               invoiceNumber: bill.invoice_number || bill.id?.slice(0, 8),
                               items: bill.items || [],
-                              orderType: bill.order_type || 'Takeaway / Pickup',
                               business: { ...(business || {}), logo_url: logo },
                               date: bill.created_at
                             });

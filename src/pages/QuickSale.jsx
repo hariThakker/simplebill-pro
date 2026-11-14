@@ -40,7 +40,6 @@ export default function QuickSale() {
   const [discountAmount, setDiscountAmount] = useState(0);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [lastBill, setLastBill] = useState(null);
-  const [orderType, setOrderType] = useState('Takeaway / Pickup');
   const [modalSlipView, setModalSlipView] = useState('bill'); // 'bill' | 'token'
 
   // Wheel states
@@ -182,7 +181,6 @@ export default function QuickSale() {
         content: printedBill,
         invoiceNumber,
         tokenNumber,
-        orderType,
         billItems: [...billItems],
         finalAmount: totalAmount,
         paymentMode,
@@ -413,46 +411,6 @@ export default function QuickSale() {
             <span style={{ fontVariantNumeric: 'tabular-nums' }}>-₹{finalDiscountValue.toLocaleString()}</span>
           </div>
         )}
-
-        {/* Order Type Toggle (Takeaway / Dine-in) */}
-        <div style={{ display: 'flex', background: 'var(--card-subtle)', border: '1px solid var(--border)', borderRadius: 'var(--radius-xs)', padding: '2px', marginBottom: '14px', gap: '3px' }}>
-          <button
-            type="button"
-            onClick={() => setOrderType('Takeaway / Pickup')}
-            style={{
-              flex: 1,
-              padding: '6px 8px',
-              fontSize: '11px',
-              fontWeight: 700,
-              borderRadius: 'var(--radius-xs)',
-              border: 'none',
-              cursor: 'pointer',
-              background: orderType === 'Takeaway / Pickup' ? 'var(--primary)' : 'transparent',
-              color: orderType === 'Takeaway / Pickup' ? '#ffffff' : 'var(--text-dim)',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            🥡 Takeaway (Token)
-          </button>
-          <button
-            type="button"
-            onClick={() => setOrderType('Dine-in')}
-            style={{
-              flex: 1,
-              padding: '6px 8px',
-              fontSize: '11px',
-              fontWeight: 700,
-              borderRadius: 'var(--radius-xs)',
-              border: 'none',
-              cursor: 'pointer',
-              background: orderType === 'Dine-in' ? 'var(--primary)' : 'transparent',
-              color: orderType === 'Dine-in' ? '#ffffff' : 'var(--text-dim)',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            🍽️ Dine-in
-          </button>
-        </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: '20px', fontWeight: 800, marginBottom: '16px' }}>
           <span>Net Payable</span>
@@ -934,11 +892,8 @@ export default function QuickSale() {
                   <div style={{ fontSize: '10px', color: '#666', textTransform: 'uppercase', letterSpacing: '1px' }}>
                     Pickup Order Token
                   </div>
-                  <div style={{ fontSize: '46px', fontWeight: 900, margin: '6px 0', letterSpacing: '-1px', color: '#000000', lineHeight: 1 }}>
+                  <div style={{ fontSize: '46px', fontWeight: 900, margin: '6px 0 10px', letterSpacing: '-1px', color: '#000000', lineHeight: 1 }}>
                     #{lastBill.tokenNumber}
-                  </div>
-                  <div style={{ display: 'inline-block', border: '1.5px solid #000000', padding: '2px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', marginBottom: '10px', color: '#000000' }}>
-                    {lastBill.orderType}
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '6px 0', fontSize: '11px', marginBottom: '10px', textAlign: 'left', color: '#000000' }}>
@@ -988,7 +943,6 @@ export default function QuickSale() {
                     lastBill.tokenNumber,
                     lastBill.invoiceNumber,
                     lastBill.billItems,
-                    lastBill.orderType,
                     lastBill.business
                   );
 
@@ -1006,7 +960,6 @@ export default function QuickSale() {
                     tokenNumber: lastBill.tokenNumber,
                     invoiceNumber: lastBill.invoiceNumber,
                     items: lastBill.billItems,
-                    orderType: lastBill.orderType,
                     business: lastBill.business,
                     logoUrl: effectiveLogo
                   });
