@@ -137,9 +137,14 @@ export default function MobileMenu({
             </button>
           </div>
 
-          <div className="mobile-theme-row">
-            <span className="mobile-section-label" style={{ marginBottom: 0 }}>Theme</span>
-            <ThemeToggle theme={theme} onChange={onThemeChange} />
+          <div className="mobile-theme-card">
+            <div className="mobile-theme-header">
+              <span className="mobile-section-label" style={{ marginBottom: 0 }}>Appearance</span>
+              <span className="sidebar-theme-badge">
+                {theme === 'system' ? 'System' : theme === 'dark' ? 'Dark' : 'Light'}
+              </span>
+            </div>
+            <ThemeToggle theme={theme} onChange={onThemeChange} fullWidth={true} />
           </div>
 
           <button

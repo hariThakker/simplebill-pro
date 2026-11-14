@@ -25,7 +25,15 @@ export default function Settings() {
   const [groups, setGroups] = useState([]);
   const [newGroupName, setNewGroupName] = useState('');
   const [addingGroup, setAddingGroup] = useState(false);
-  const [currentTheme, setCurrentTheme] = useState(localStorage.getItem('theme') || 'system');
+  const [currentTheme, setCurrentTheme] = useState(() => localStorage.getItem('theme') || 'system');
+
+  useEffect(() => {
+    const onThemeChange = () => {
+      setCurrentTheme(localStorage.getItem('theme') || 'system');
+    };
+    window.addEventListener('themeChanged', onThemeChange);
+    return () => window.removeEventListener('themeChanged', onThemeChange);
+  }, []);
 
   // Delete branch modal
   const [groupToDelete, setGroupToDelete] = useState(null);

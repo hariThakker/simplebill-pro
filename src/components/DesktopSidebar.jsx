@@ -10,7 +10,8 @@ import {
   PrinterIcon,
   LogOutIcon,
   Building2Icon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  SunIcon
 } from './Icons';
 import ThemeToggle from './ThemeToggle';
 
@@ -118,12 +119,18 @@ export default function DesktopSidebar({
           </button>
         </div>
 
-        {/* Theme Switcher */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
-          <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase' }}>
-            Theme
-          </span>
-          <ThemeToggle theme={theme} onChange={onThemeChange} />
+        {/* Theme Appearance Card */}
+        <div className="sidebar-theme-card">
+          <div className="sidebar-theme-header">
+            <div className="sidebar-theme-title">
+              <SunIcon size={12} style={{ color: 'var(--primary)' }} />
+              <span>Theme</span>
+            </div>
+            <span className="sidebar-theme-badge">
+              {theme === 'system' ? 'System' : theme === 'dark' ? 'Dark' : 'Light'}
+            </span>
+          </div>
+          <ThemeToggle theme={theme} onChange={onThemeChange} fullWidth={true} />
         </div>
 
         {/* User Profile & Sign Out */}

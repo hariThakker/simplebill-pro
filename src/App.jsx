@@ -42,13 +42,17 @@ import { ToastProvider, useToast } from './components/Toast';
 import { SkeletonMetric, SkeletonCard } from './components/Skeleton';
 
 function applyTheme(t) {
-  let target = t;
-  if (t === 'system') {
-    target = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  const mode = t || localStorage.getItem('theme') || 'system';
+  let target = mode;
+  if (mode === 'system') {
+    target = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
   document.documentElement.setAttribute('data-theme', target);
   document.body.setAttribute('data-theme', target);
-  localStorage.setItem('theme', t);
+  if (document.documentElement.style) {
+    document.documentElement.style.colorScheme = target;
+  }
+  localStorage.setItem('theme', mode);
 }
 
 export default function App() {
@@ -79,7 +83,27 @@ function AppContent() {
     applyTheme(theme);
   }, [theme]);
 
+  // Sync dynamic OS color scheme changes when theme is 'system'
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleSystemChange = (e) => {
+      const current = localStorage.getItem('theme') || 'system';
+      if (current === 'system') {
+        const target = e.matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', target);
+        document.body.setAttribute('data-theme', target);
+        if (document.documentElement.style) {
+          document.documentElement.style.colorScheme = target;
+        }
+      }
+    };
+    mediaQuery.addEventListener('change', handleSystemChange);
+    return () => mediaQuery.removeEventListener('change', handleSystemChange);
+  }, []);
+
   const handleThemeChange = (newTheme) => {
+    localStorage.setItem('theme', newTheme);
+    applyTheme(newTheme);
     setTheme(newTheme);
     window.dispatchEvent(new Event('themeChanged'));
   };
@@ -118,7 +142,11 @@ function AppContent() {
       setSession(session);
     });
 
-    const themeHandler = () => setTheme(localStorage.getItem('theme') || 'system');
+    const themeHandler = () => {
+      const stored = localStorage.getItem('theme') || 'system';
+      setTheme((prev) => (prev !== stored ? stored : prev));
+      applyTheme(stored);
+    };
     window.addEventListener('themeChanged', themeHandler);
 
     return () => {
