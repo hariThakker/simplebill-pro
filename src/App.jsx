@@ -30,7 +30,6 @@ import {
   CreditCardIcon,
   RefreshCwIcon
 } from './components/Icons';
-import ThemeToggle from './components/ThemeToggle';
 import ScrollProgressBar from './components/ScrollProgressBar';
 import BackToTop from './components/BackToTop';
 import SkipToContent from './components/SkipToContent';
@@ -286,11 +285,6 @@ function AppContent() {
                 <PrinterIcon size={14} />
                 <span>{isConnected ? 'Printer Ready' : 'Connect Printer'}</span>
               </button>
-
-              {/* Theme Toggle (Header Desktop) */}
-              <div className="desktop-header-theme">
-                <ThemeToggle theme={theme} onChange={handleThemeChange} />
-              </div>
 
               {/* Mobile Menu Trigger Button (Hidden on >=1024px) */}
               <button

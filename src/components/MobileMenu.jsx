@@ -63,7 +63,7 @@ export default function MobileMenu({
       >
         <div className="mobile-drawer-header">
           <div className="mobile-drawer-brand">
-            <span className="brand-gradient-badge">PRO</span>
+            <span className="brand-badge">PRO</span>
             <div>
               <span className="brand-name">SimpleBill</span>
               <span className="brand-tagline">POS & Inventory</span>

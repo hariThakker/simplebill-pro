@@ -1,132 +1,156 @@
 /* ==========================================================================
-   SimpleBill Pro — Desert Sunset Design System
-   Refactored following heydamir/unslop specifications:
-   - Cohesive 4px/8px spacing rhythm
-   - Desert Sunset gradient & warm neutral token system
-   - High-contrast, accessible typography
-   - Refined micro-interactions & purposeful hover states
-   - Thermal & A4 print stylesheets
-   - Responsive layouts across Mobile, Tablet, and Desktop
+   SimpleBill Pro — Artisan Retail POS Design System
+   Color Palette derived from bespoke pairings:
+   - Off-Road Green (#023A22)
+   - Colonial White (#FFF0BA)
+   - Green Waterloo (#111808)
+   - Gabriella Soft Blue (#ADDFF1)
+   - Prestige Mauve / Navy (#003152)
+
+   Design Philosophy:
+   - 100% Solid surfaces & crisp 1px borders (NO AI neon gradients or blurry glows)
+   - High-contrast, executive retail typography
+   - Tactile physical-button feedback with micro-interactions
    ========================================================================== */
 
 :root,
 [data-theme='light'] {
-  /* Brand Gradients */
-  --gradient-sunset: linear-gradient(135deg, #f97316 0%, #ea580c 35%, #e11d48 70%, #9333ea 100%);
-  --gradient-sunset-subtle: linear-gradient(135deg, rgba(249, 115, 22, 0.08) 0%, rgba(225, 29, 72, 0.08) 50%, rgba(147, 51, 234, 0.08) 100%);
-  --gradient-sunset-card: linear-gradient(145deg, #ffffff 0%, #fdf9f4 100%);
-  --gradient-sunset-glow: 0 10px 25px -5px rgba(234, 88, 12, 0.35);
+  /* Brand Palette (Bespoke Solid Colors) */
+  --color-off-road-green: #023A22;
+  --color-colonial-white: #FFF0BA;
+  --color-green-waterloo: #111808;
+  --color-gabriella-blue: #ADDFF1;
+  --color-prestige-navy: #003152;
 
-  /* Core Palette (Light - Desert Sand Warmth) */
-  --primary: #ea580c;
-  --primary-hover: #c2410c;
-  --primary-active: #9a3412;
-  --primary-subtle: rgba(234, 88, 12, 0.08);
-  --primary-border: rgba(234, 88, 12, 0.25);
-  --primary-text: #ffffff;
+  /* Legacy gradient variables aliased to solid brand tokens for clean backwards compatibility */
+  --gradient-sunset: #023A22;
+  --gradient-sunset-subtle: rgba(2, 58, 34, 0.08);
+  --gradient-sunset-card: #FFFFFF;
+  --gradient-sunset-glow: 0 2px 8px -2px rgba(2, 58, 34, 0.15);
 
-  --accent-amber: #f59e0b;
-  --accent-rose: #e11d48;
-  --accent-dusk: #7e22ce;
+  /* Primary Brand: Off-Road Green (#023A22) */
+  --primary: #023A22;
+  --primary-hover: #074e2f;
+  --primary-active: #012415;
+  --primary-subtle: rgba(2, 58, 34, 0.08);
+  --primary-border: rgba(2, 58, 34, 0.22);
+  --primary-text: #FFFFFF;
 
-  --success: #0d9488;
-  --success-subtle: rgba(13, 148, 136, 0.1);
-  --success-border: rgba(13, 148, 136, 0.25);
+  /* Accent Colors */
+  --accent-blue: #ADDFF1;
+  --accent-blue-subtle: rgba(173, 223, 241, 0.35);
+  --accent-navy: #003152;
+  --accent-colonial: #FFF0BA;
 
-  --danger: #dc2626;
-  --danger-subtle: rgba(220, 38, 38, 0.1);
-  --danger-border: rgba(220, 38, 38, 0.25);
+  --success: #023A22;
+  --success-subtle: rgba(2, 58, 34, 0.08);
+  --success-border: rgba(2, 58, 34, 0.22);
 
-  --warning: #d97706;
-  --warning-subtle: rgba(217, 119, 6, 0.1);
-  --warning-border: rgba(217, 119, 6, 0.25);
+  --danger: #B91C1C;
+  --danger-subtle: rgba(185, 28, 28, 0.08);
+  --danger-border: rgba(185, 28, 28, 0.2);
 
-  --info: #0284c7;
-  --info-subtle: rgba(2, 132, 199, 0.1);
+  --warning: #B45309;
+  --warning-subtle: rgba(180, 83, 9, 0.08);
+  --warning-border: rgba(180, 83, 9, 0.2);
 
-  /* Neutral Scale */
-  --bg: #faf7f2;
-  --card: #ffffff;
-  --card-raised: #ffffff;
-  --card-subtle: #f5f0e8;
-  --border: #e8decb;
-  --border-subtle: #f0e8dc;
-  --border-focus: #ea580c;
+  --info: #003152;
+  --info-subtle: rgba(0, 49, 82, 0.08);
 
-  --text: #261914;
-  --text-secondary: #6e594d;
-  --text-dim: #998377;
-  --text-light: #bfafa5;
+  /* Light Neutral Surfaces (Colonial White Warmth) */
+  --bg: #FAF7EE;
+  --bg-showcase: #023A22;
+  --card: #FFFFFF;
+  --card-raised: #FFFFFF;
+  --card-subtle: #F3ECE0;
+  --border: #DFD7C4;
+  --border-subtle: #EBE5D5;
+  --border-focus: #023A22;
+
+  --text: #111808;
+  --text-secondary: #405038;
+  --text-dim: #708168;
+  --text-light: #A0B198;
 
   /* Typography */
   --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* Elevation */
+  /* Elevation (Crisp, Subtle Shadows - No AI Neon Glow) */
   --radius-xs: 6px;
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
   --radius-full: 9999px;
 
-  --shadow-sm: 0 1px 3px rgba(38, 25, 20, 0.05), 0 1px 2px rgba(38, 25, 20, 0.03);
-  --shadow-md: 0 4px 14px -2px rgba(38, 25, 20, 0.08), 0 2px 6px -2px rgba(38, 25, 20, 0.04);
-  --shadow-lg: 0 16px 32px -6px rgba(38, 25, 20, 0.12), 0 6px 12px -4px rgba(38, 25, 20, 0.05);
-  --shadow-floating: 0 20px 40px -8px rgba(38, 25, 20, 0.18);
+  --shadow-sm: 0 1px 2px rgba(17, 24, 8, 0.05);
+  --shadow-md: 0 3px 8px -1px rgba(17, 24, 8, 0.08), 0 1px 3px rgba(17, 24, 8, 0.04);
+  --shadow-lg: 0 10px 22px -4px rgba(17, 24, 8, 0.1), 0 3px 6px -2px rgba(17, 24, 8, 0.04);
+  --shadow-floating: 0 18px 36px -6px rgba(17, 24, 8, 0.16);
 }
 
 [data-theme='dark'] {
-  /* Dark Mode — Twilight Desert Night */
-  --gradient-sunset: linear-gradient(135deg, #fb923c 0%, #f43f5e 45%, #c084fc 100%);
-  --gradient-sunset-subtle: linear-gradient(135deg, rgba(251, 146, 60, 0.12) 0%, rgba(244, 63, 94, 0.12) 50%, rgba(192, 132, 252, 0.12) 100%);
-  --gradient-sunset-card: linear-gradient(145deg, #1d1627 0%, #171120 100%);
-  --gradient-sunset-glow: 0 10px 25px -5px rgba(251, 146, 60, 0.4);
+  /* Dark Mode Palette: Green Waterloo (#111808) & Forest Slate */
+  --color-off-road-green: #023A22;
+  --color-colonial-white: #FFF0BA;
+  --color-green-waterloo: #111808;
+  --color-gabriella-blue: #ADDFF1;
+  --color-prestige-navy: #003152;
 
-  --primary: #fb923c;
-  --primary-hover: #f97316;
-  --primary-active: #ea580c;
-  --primary-subtle: rgba(251, 146, 60, 0.15);
-  --primary-border: rgba(251, 146, 60, 0.35);
-  --primary-text: #171120;
+  /* Solid Dark Mode Tokens */
+  --gradient-sunset: #1E663B;
+  --gradient-sunset-subtle: rgba(46, 139, 87, 0.15);
+  --gradient-sunset-card: #172111;
+  --gradient-sunset-glow: 0 2px 8px -2px rgba(0, 0, 0, 0.35);
 
-  --accent-amber: #fbb03b;
-  --accent-rose: #fb7185;
-  --accent-dusk: #c084fc;
+  --primary: #247545;
+  --primary-hover: #2D8B54;
+  --primary-active: #1B5C35;
+  --primary-subtle: rgba(52, 211, 153, 0.12);
+  --primary-border: rgba(52, 211, 153, 0.25);
+  --primary-text: #FFFFFF;
 
-  --success: #2dd4bf;
-  --success-subtle: rgba(45, 212, 191, 0.15);
-  --success-border: rgba(45, 212, 191, 0.3);
+  --accent-blue: #ADDFF1;
+  --accent-blue-subtle: rgba(173, 223, 241, 0.15);
+  --accent-navy: #003152;
+  --accent-colonial: #FFF0BA;
 
-  --danger: #f87171;
-  --danger-subtle: rgba(248, 113, 113, 0.15);
-  --danger-border: rgba(248, 113, 113, 0.3);
+  --success: #34D399;
+  --success-subtle: rgba(52, 211, 153, 0.12);
+  --success-border: rgba(52, 211, 153, 0.25);
 
-  --warning: #fbbf24;
-  --warning-subtle: rgba(251, 191, 36, 0.15);
-  --warning-border: rgba(251, 191, 36, 0.3);
+  --danger: #F87171;
+  --danger-subtle: rgba(248, 113, 113, 0.12);
+  --danger-border: rgba(248, 113, 113, 0.25);
 
-  --info: #38bdf8;
-  --info-subtle: rgba(56, 189, 248, 0.15);
+  --warning: #FBBF24;
+  --warning-subtle: rgba(251, 191, 36, 0.12);
+  --warning-border: rgba(251, 191, 36, 0.25);
 
-  --bg: #120e17;
-  --card: #1c1525;
-  --card-raised: #251c32;
-  --card-subtle: #2b213a;
-  --border: #382a4a;
-  --border-subtle: #2c203b;
-  --border-focus: #fb923c;
+  --info: #ADDFF1;
+  --info-subtle: rgba(173, 223, 241, 0.12);
 
-  --text: #fbf7f4;
-  --text-secondary: #c9bbae;
-  --text-dim: #948377;
-  --text-light: #6e5e54;
+  /* Dark Neutral Surfaces (Green Waterloo Deep Charcoal) */
+  --bg: #111808;
+  --bg-showcase: #111808;
+  --card: #182212;
+  --card-raised: #1E2B16;
+  --card-subtle: #23321A;
+  --border: #2B3D21;
+  --border-subtle: #202D18;
+  --border-focus: #ADDFF1;
 
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 6px 18px -2px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 20px 40px -6px rgba(0, 0, 0, 0.65);
-  --shadow-floating: 0 24px 48px -8px rgba(0, 0, 0, 0.75);
+  --text: #F4F8F1;
+  --text-secondary: #B9CBB3;
+  --text-dim: #798D73;
+  --text-light: #4A5945;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 14px -2px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 12px 28px -4px rgba(0, 0, 0, 0.7);
+  --shadow-floating: 0 20px 40px -6px rgba(0, 0, 0, 0.8);
 }
 
 /* ==========================================================================
@@ -236,9 +260,8 @@ button, input, select, textarea {
 
 .scroll-progress-bar {
   height: 100%;
-  background: var(--gradient-sunset);
+  background: var(--primary);
   transition: width 0.1s linear;
-  box-shadow: 0 0 10px rgba(234, 88, 12, 0.5);
 }
 
 /* ==========================================================================
@@ -274,7 +297,6 @@ button, input, select, textarea {
     display: none !important;
   }
   .desktop-header-branch-pill,
-  .desktop-header-theme,
   .desktop-header-logout {
     display: none !important;
   }
@@ -374,6 +396,8 @@ button, input, select, textarea {
     background: var(--primary-subtle);
     color: var(--primary);
     font-weight: 700;
+    border-left: 3px solid var(--primary);
+    padding-left: 11px;
   }
 
   .sidebar-nav-link.highlight {
@@ -384,10 +408,10 @@ button, input, select, textarea {
     margin-left: auto;
     font-size: 9.5px;
     font-weight: 800;
-    padding: 2px 6px;
+    padding: 2px 7px;
     border-radius: var(--radius-full);
-    background: var(--gradient-sunset);
-    color: white;
+    background: var(--primary);
+    color: var(--primary-text);
   }
 
   .sidebar-footer {
@@ -459,14 +483,15 @@ button, input, select, textarea {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: var(--gradient-sunset);
-    color: white;
+    background: var(--primary);
+    color: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 800;
     font-size: 13px;
     flex-shrink: 0;
+    border: 1px solid var(--primary-border);
   }
 
   .sidebar-user-info {
@@ -541,10 +566,6 @@ button, input, select, textarea {
     font-weight: 700;
   }
 
-  .desktop-header-theme {
-    display: block !important;
-  }
-
   .desktop-header-logout {
     display: flex !important;
   }
@@ -593,8 +614,8 @@ button, input, select, textarea {
 .brand-logo-badge {
   width: 36px;
   height: 36px;
-  background: var(--gradient-sunset);
-  color: white;
+  background: var(--primary);
+  color: #ffffff;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
@@ -603,7 +624,8 @@ button, input, select, textarea {
   font-weight: 800;
   font-size: 15px;
   letter-spacing: 0.5px;
-  box-shadow: var(--gradient-sunset-glow);
+  border: 1px solid var(--primary-border);
+  box-shadow: var(--shadow-sm);
 }
 
 .brand-title {
@@ -615,9 +637,8 @@ button, input, select, textarea {
 }
 
 .brand-title span {
-  background: var(--gradient-sunset);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--primary);
+  font-weight: 800;
 }
 
 .branch-select-wrapper {
@@ -749,11 +770,11 @@ button, input, select, textarea {
 /* Left Showcase Panel */
 .auth-showcase-panel {
   display: none;
-  background: linear-gradient(150deg, #1f142b 0%, #160e20 60%, #0d0813 100%);
+  background: var(--color-off-road-green, #023A22);
   position: relative;
   padding: 60px 48px;
   overflow: hidden;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 @media (min-width: 1024px) {
@@ -765,15 +786,7 @@ button, input, select, textarea {
 }
 
 .auth-showcase-glow {
-  position: absolute;
-  top: -100px;
-  left: -100px;
-  width: 500px;
-  height: 500px;
-  background: radial-gradient(circle, rgba(249, 115, 22, 0.25) 0%, rgba(225, 29, 72, 0.15) 50%, transparent 70%);
-  border-radius: 50%;
-  pointer-events: none;
-  filter: blur(40px);
+  display: none;
 }
 
 .auth-showcase-content {
@@ -824,22 +837,22 @@ button, input, select, textarea {
 }
 
 .auth-feature-pill:hover {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(249, 115, 22, 0.4);
-  transform: translateX(4px);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--accent-blue);
+  transform: translateX(3px);
 }
 
 .feature-icon-box {
   width: 38px;
   height: 38px;
   border-radius: var(--radius-sm);
-  background: var(--gradient-sunset);
-  color: white;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--accent-blue);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
 }
 
 .auth-feature-pill strong {
@@ -963,10 +976,11 @@ button, input, select, textarea {
 }
 
 .theme-toggle-btn.active {
-  background: var(--gradient-sunset);
+  background: var(--primary);
   color: #ffffff;
   font-weight: 700;
-  box-shadow: 0 2px 6px -1px rgba(234, 88, 12, 0.35);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--primary-border);
 }
 
 .theme-toggle-btn.active svg {
@@ -1018,14 +1032,22 @@ button, input, select, textarea {
 }
 
 .btn-primary {
-  background: var(--gradient-sunset);
+  background: var(--primary);
   color: #ffffff !important;
-  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.25);
+  border-color: var(--primary-border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .btn-primary:hover:not(:disabled) {
-  box-shadow: var(--gradient-sunset-glow);
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.12);
   transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
+  background: var(--primary-active);
+  transform: translateY(1px);
 }
 
 .btn-secondary {
@@ -1227,28 +1249,16 @@ button, input, select, textarea {
 }
 
 .card-hero {
-  background: var(--gradient-sunset);
-  color: #ffffff !important;
-  border: none;
-  box-shadow: var(--gradient-sunset-glow);
+  background: var(--card-subtle);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
   position: relative;
   overflow: hidden;
 }
 
-.card-hero * {
-  color: #ffffff !important;
-}
-
 .card-hero::after {
-  content: '';
-  position: absolute;
-  right: -20px;
-  bottom: -20px;
-  width: 140px;
-  height: 140px;
-  background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
-  border-radius: 50%;
-  pointer-events: none;
+  display: none;
 }
 
 /* ==========================================================================
@@ -1298,7 +1308,8 @@ button, input, select, textarea {
   width: 46px;
   height: 46px;
   border-radius: var(--radius-sm);
-  background: var(--gradient-sunset-subtle);
+  background: var(--primary-subtle);
+  border: 1px solid var(--primary-border);
   color: var(--primary);
   display: flex;
   align-items: center;
@@ -1328,6 +1339,45 @@ button, input, select, textarea {
   font-weight: 800;
   font-size: 15px;
   color: var(--primary);
+}
+
+/* Mobile Cart Floating Review Button (Hidden on Desktop >= 1024px) */
+.pos-mobile-cart-btn {
+  display: none !important;
+}
+
+@media (max-width: 1023px) {
+  .pos-mobile-cart-btn {
+    display: flex !important;
+    position: fixed;
+    bottom: 84px;
+    left: 16px;
+    right: 16px;
+    height: 52px;
+    border-radius: var(--radius-sm);
+    background: var(--primary);
+    color: #ffffff !important;
+    border: 1px solid var(--primary-border);
+    box-shadow: var(--shadow-md);
+    z-index: 920;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 16px;
+    cursor: pointer;
+  }
+
+  .pos-mobile-cart-badge {
+    background: #ffffff;
+    color: var(--primary);
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 11.5px;
+  }
 }
 
 /* Cart Drawer & Summary */
@@ -1405,9 +1455,9 @@ button, input, select, textarea {
 }
 
 .nav-btn.highlight-active {
-  background: var(--gradient-sunset);
+  background: var(--primary);
   color: #ffffff;
-  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
+  box-shadow: var(--shadow-sm);
 }
 
 /* ==========================================================================
@@ -1456,14 +1506,16 @@ button, input, select, textarea {
   gap: 10px;
 }
 
+.brand-badge,
 .brand-gradient-badge {
-  background: var(--gradient-sunset);
-  color: white;
+  background: var(--primary);
+  color: #ffffff;
   padding: 3px 8px;
   border-radius: var(--radius-xs);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.5px;
+  border: 1px solid var(--primary-border);
 }
 
 .brand-name {
@@ -1816,9 +1868,9 @@ button, input, select, textarea {
 
 .back-to-top-btn:hover {
   transform: translateY(-3px);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-md);
   border-color: var(--primary);
-  background: var(--gradient-sunset);
+  background: var(--primary);
   color: #ffffff;
 }
 
@@ -1911,8 +1963,9 @@ button, input, select, textarea {
 }
 
 .btn-banner-primary {
-  background: var(--gradient-sunset);
+  background: var(--primary);
   color: #ffffff;
+  border-color: var(--primary-border);
 }
 
 .btn-banner-secondary {

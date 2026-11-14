@@ -498,47 +498,21 @@ export default function QuickSale() {
         </aside>
       </div>
 
-      {/* Floating Cart Review Button for Mobile */}
+      {/* Floating Cart Review Button for Mobile (Only on screens < 1024px) */}
       {billItems.length > 0 && !showCart && (
         <button
           type="button"
           onClick={() => setShowCart(true)}
-          className="btn btn-primary"
-          style={{
-            position: 'fixed',
-            bottom: '84px',
-            left: '20px',
-            right: '20px',
-            height: '56px',
-            borderRadius: 'var(--radius-lg)',
-            boxShadow: 'var(--gradient-sunset-glow)',
-            zIndex: 920,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '0 20px'
-          }}
+          className="btn btn-primary pos-mobile-cart-btn"
+          aria-label={`Review cart: ${totalQty} items totaling ₹${totalAmount}`}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span
-              style={{
-                background: 'white',
-                color: 'var(--primary)',
-                width: '24px',
-                height: '24px',
-                borderRadius: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 800,
-                fontSize: '12px'
-              }}
-            >
+            <span className="pos-mobile-cart-badge">
               {totalQty}
             </span>
             <span style={{ fontWeight: 700 }}>Review Cart</span>
           </div>
-          <span style={{ fontSize: '17px', fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
+          <span style={{ fontSize: '16px', fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
             ₹{totalAmount.toLocaleString()}
           </span>
         </button>

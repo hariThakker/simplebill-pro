@@ -461,9 +461,9 @@ export default function Settings() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
           {[
-            { id: 'light', label: 'Light', icon: SunIcon, desc: 'Desert Sand' },
-            { id: 'dark', label: 'Dark', icon: MoonIcon, desc: 'Dusk Obsidian' },
-            { id: 'system', label: 'System', icon: MonitorIcon, desc: 'Match Device' }
+            { id: 'light', label: 'Light', icon: SunIcon, desc: 'Colonial White & Pine' },
+            { id: 'dark', label: 'Dark', icon: MoonIcon, desc: 'Green Waterloo & Forest' },
+            { id: 'system', label: 'System', icon: MonitorIcon, desc: 'Auto System Match' }
           ].map((t) => {
             const Icon = t.icon;
             const isSelected = currentTheme === t.id;

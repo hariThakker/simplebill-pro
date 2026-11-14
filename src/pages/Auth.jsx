@@ -190,7 +190,7 @@ export default function Auth() {
                 SB
               </div>
               <h1 style={{ fontSize: '24px', fontWeight: 800 }}>
-                SimpleBill <span style={{ background: 'var(--gradient-sunset)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Pro</span>
+                SimpleBill <span style={{ color: 'var(--primary)' }}>Pro</span>
               </h1>
               <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>
                 {isLogin ? 'Sign in to access your point of sale' : 'Set up your store account'}
