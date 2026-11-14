@@ -518,3 +518,285 @@ export function isPrinterConnected() {
 export function getConnectedDevice() {
   return bluetoothDevice;
 }
+
+export function getNextTokenNumber(groupId) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const dateKey = `token_date_${groupId || 'default'}`;
+  const numKey = `token_seq_${groupId || 'default'}`;
+
+  const lastDate = localStorage.getItem(dateKey);
+  let seq = parseInt(localStorage.getItem(numKey) || '0', 10);
+
+  if (lastDate !== todayStr) {
+    seq = 1;
+  } else {
+    seq += 1;
+  }
+
+  localStorage.setItem(dateKey, todayStr);
+  localStorage.setItem(numKey, String(seq));
+  return String(seq).padStart(2, '0');
+}
+
+export function generateTokenContent(tokenNumber, invoiceNumber, items = [], orderType = 'Counter Pickup', business = {}) {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-IN');
+  const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  const LINE_WIDTH = 32;
+
+  let token = `\n`;
+  token += `${'='.repeat(LINE_WIDTH)}\n`;
+  token += `   ${(business.business_name || 'FOOD COUNTER').toUpperCase().substring(0, 26)}\n`;
+  token += `        ORDER TOKEN\n`;
+  token += `${'='.repeat(LINE_WIDTH)}\n\n`;
+  token += `        TOKEN #${tokenNumber}\n\n`;
+  token += `${'='.repeat(LINE_WIDTH)}\n`;
+  token += `Inv: #${invoiceNumber}\n`;
+  token += `Type: ${orderType.toUpperCase()}\n`;
+  token += `Time: ${dateStr} ${timeStr}\n`;
+  token += `${'-'.repeat(LINE_WIDTH)}\n`;
+  token += `QTY   ITEM DESCRIPTION\n`;
+  token += `${'-'.repeat(LINE_WIDTH)}\n`;
+
+  let totalQty = 0;
+  items.forEach(item => {
+    totalQty += item.qty;
+    const qtyStr = `${item.qty}x`.padEnd(5);
+    const nameStr = item.name.substring(0, 24);
+    token += `[ ] ${qtyStr} ${nameStr}\n`;
+  });
+
+  token += `${'-'.repeat(LINE_WIDTH)}\n`;
+  token += `Total Items: ${items.length}  Total Qty: ${totalQty}\n`;
+  token += `${'='.repeat(LINE_WIDTH)}\n`;
+  token += `Please present this token at counter\n`;
+  token += `      for food collection\n`;
+  token += `${'='.repeat(LINE_WIDTH)}\n\n\n\n`;
+
+  return token;
+}
+
+export function printOrderToken(options = {}) {
+  const {
+    tokenNumber = '01',
+    invoiceNumber = '0000',
+    items = [],
+    orderType = 'Counter Pickup',
+    business = {},
+    date = new Date()
+  } = options;
+
+  const hideFrame = document.createElement('iframe');
+  hideFrame.style.position = 'fixed';
+  hideFrame.style.right = '0';
+  hideFrame.style.bottom = '0';
+  hideFrame.style.width = '0';
+  hideFrame.style.height = '0';
+  hideFrame.style.border = '0';
+  document.body.appendChild(hideFrame);
+
+  const formattedDate = new Date(date).toLocaleDateString('en-IN');
+  const formattedTime = new Date(date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  const totalQty = items.reduce((sum, i) => sum + (Number(i.qty) || 1), 0);
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Token #${tokenNumber}</title>
+        <style>
+          @page {
+            margin: 0;
+            size: auto;
+          }
+          * {
+            box-sizing: border-box;
+          }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Courier New", monospace;
+            font-size: 13px;
+            color: #000000;
+            background: #ffffff;
+            margin: 0;
+            padding: 14px 16px;
+            width: 100%;
+            max-width: 80mm;
+            margin: 0 auto;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .token-header {
+            text-align: center;
+            border-bottom: 2px dashed #000000;
+            padding-bottom: 12px;
+            margin-bottom: 12px;
+          }
+          .store-name {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+          }
+          .token-badge-title {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #555555;
+          }
+          .token-number-hero {
+            font-size: 44px;
+            font-weight: 900;
+            line-height: 1;
+            margin: 10px 0;
+            letter-spacing: -1px;
+          }
+          .token-type-pill {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 800;
+            border: 1.5px solid #000000;
+            padding: 2px 10px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            margin-top: 4px;
+          }
+          .token-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            margin-bottom: 10px;
+            border-bottom: 1px dashed #000000;
+            padding-bottom: 8px;
+          }
+          .items-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            border-bottom: 1px solid #000000;
+            padding-bottom: 4px;
+            margin-bottom: 8px;
+          }
+          .item-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 6px 0;
+            border-bottom: 1px dotted #cccccc;
+            font-size: 13px;
+          }
+          .item-box {
+            width: 14px;
+            height: 14px;
+            border: 1.5px solid #000000;
+            border-radius: 2px;
+            margin-top: 2px;
+            flex-shrink: 0;
+          }
+          .item-qty {
+            font-weight: 800;
+            font-size: 14px;
+            min-width: 28px;
+          }
+          .item-name {
+            font-weight: 700;
+            flex: 1;
+          }
+          .token-summary {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            font-weight: 800;
+            margin-top: 10px;
+            padding-top: 6px;
+            border-top: 1px solid #000000;
+          }
+          .token-footer {
+            text-align: center;
+            margin-top: 14px;
+            padding-top: 10px;
+            border-top: 2px dashed #000000;
+            font-size: 11px;
+            font-weight: 600;
+            line-height: 1.4;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="token-header">
+          <div class="store-name">${business?.business_name || 'FOOD COUNTER TOKEN'}</div>
+          <div class="token-badge-title">Kitchen / Counter Order</div>
+          <div class="token-number-hero">#${tokenNumber}</div>
+          <div class="token-type-pill">${orderType}</div>
+        </div>
+
+        <div class="token-meta">
+          <div>
+            <div><strong>Inv:</strong> #${invoiceNumber}</div>
+            <div><strong>Date:</strong> ${formattedDate}</div>
+          </div>
+          <div style="text-align: right;">
+            <div><strong>Time:</strong> ${formattedTime}</div>
+            <div><strong>Items:</strong> ${items.length} (${totalQty} pcs)</div>
+          </div>
+        </div>
+
+        <div class="items-header">
+          <span>Items to Prepare / Handover</span>
+          <span>Qty</span>
+        </div>
+
+        <div>
+          ${items.map(i => `
+            <div class="item-row">
+              <div class="item-box"></div>
+              <div class="item-qty">${i.qty}x</div>
+              <div class="item-name">${i.name}</div>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="token-summary">
+          <span>Total Quantities</span>
+          <span>${totalQty} items</span>
+        </div>
+
+        <div class="token-footer">
+          <div>Please show this token at the counter</div>
+          <div>for food order collection &bull; Thank You!</div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const doc = hideFrame.contentWindow.document;
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  setTimeout(() => {
+    try {
+      hideFrame.contentWindow.focus();
+      hideFrame.contentWindow.print();
+    } catch (e) {
+      console.error('Print token error', e);
+    } finally {
+      setTimeout(() => {
+        if (hideFrame.parentNode) {
+          document.body.removeChild(hideFrame);
+        }
+      }, 1500);
+    }
+  }, 150);
+}
+
+export function printBothReceiptAndToken(receiptOptions = {}, tokenOptions = {}) {
+  printFormattedReceipt(receiptOptions);
+  setTimeout(() => {
+    printOrderToken(tokenOptions);
+  }, 1200);
+}

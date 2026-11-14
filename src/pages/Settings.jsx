@@ -49,6 +49,7 @@ export default function Settings() {
   });
   const [logoUrl, setLogoUrl] = useState('');
   const [discountRates, setDiscountRates] = useState(() => localStorage.getItem('discountRates') || '5,10,15,20,25');
+  const [autoPrintToken, setAutoPrintToken] = useState(() => localStorage.getItem('autoPrintToken') === 'true');
 
   const fetchGroups = useCallback(async () => {
     const { data } = await supabase.from('groups').select('*').order('name');
@@ -190,6 +191,7 @@ export default function Settings() {
       setSaved(true);
       localStorage.setItem('printerMode', formData.printer_mode);
       localStorage.setItem('discountRates', discountRates);
+      localStorage.setItem('autoPrintToken', autoPrintToken ? 'true' : 'false');
       toast.success('Configuration saved successfully');
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
@@ -449,6 +451,34 @@ export default function Settings() {
               >
                 Test Print
               </button>
+            </div>
+          </div>
+
+          {/* Fast-Food Counter Token Auto-Print */}
+          <div className="form-group" style={{ marginBottom: 0, padding: '14px', background: 'var(--card-subtle)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
+              <div>
+                <label className="form-label" style={{ marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>Fast-Food Counter Token Mode</span>
+                  <span className="badge badge-accent" style={{ fontSize: '9px', padding: '1px 6px' }}>QSR</span>
+                </label>
+                <p style={{ fontSize: '11.5px', color: 'var(--text-dim)', margin: 0 }}>
+                  Automatically print a food pickup token slip (with large #XX number &amp; preparation checklist) alongside customer bill.
+                </p>
+              </div>
+              <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                <input
+                  type="checkbox"
+                  checked={autoPrintToken}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setAutoPrintToken(checked);
+                    localStorage.setItem('autoPrintToken', checked ? 'true' : 'false');
+                    toast.success(checked ? 'Auto-print counter token enabled' : 'Auto-print counter token disabled');
+                  }}
+                  style={{ width: '18px', height: '18px', accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
+                />
+              </label>
             </div>
           </div>
 

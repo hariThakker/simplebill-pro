@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabase';
-import { printFormattedReceipt } from '../utils/printer';
+import { printFormattedReceipt, printOrderToken } from '../utils/printer';
 import {
   HistoryIcon,
   SearchIcon,
@@ -318,30 +318,55 @@ export default function BillHistory() {
                       <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-dim)' }}>
                         Items Purchased ({bill.items?.length || 0})
                       </span>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const gid = localStorage.getItem('selectedGroupId');
-                          const { data: business } = await supabase.from('settings').select('*').eq('group_id', gid).maybeSingle();
-                          const localLogo = (gid ? localStorage.getItem(`receiptLogo_${gid}`) : null) || localStorage.getItem('receiptLogo') || '';
-                          const logo = business?.logo_url || localLogo || '';
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const gid = localStorage.getItem('selectedGroupId');
+                            const { data: business } = await supabase.from('settings').select('*').eq('group_id', gid).maybeSingle();
+                            const localLogo = (gid ? localStorage.getItem(`receiptLogo_${gid}`) : null) || localStorage.getItem('receiptLogo') || '';
+                            const logo = business?.logo_url || localLogo || '';
 
-                          printFormattedReceipt({
-                            invoiceNumber: bill.invoice_number || bill.id?.slice(0, 8),
-                            items: bill.items || [],
-                            total: Number(bill.total_amount),
-                            paymentMode: bill.payment_mode || 'cash',
-                            business: business || {},
-                            date: bill.created_at,
-                            logoUrl: logo
-                          });
-                        }}
-                        className="btn btn-secondary btn-sm"
-                        style={{ padding: '4px 10px', fontSize: '11px' }}
-                      >
-                        <PrinterIcon size={12} />
-                        <span>Print Receipt</span>
-                      </button>
+                            printFormattedReceipt({
+                              invoiceNumber: bill.invoice_number || bill.id?.slice(0, 8),
+                              items: bill.items || [],
+                              total: Number(bill.total_amount),
+                              paymentMode: bill.payment_mode || 'cash',
+                              business: business || {},
+                              date: bill.created_at,
+                              logoUrl: logo
+                            });
+                          }}
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '4px 10px', fontSize: '11px' }}
+                        >
+                          <PrinterIcon size={12} />
+                          <span>Receipt</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const gid = localStorage.getItem('selectedGroupId');
+                            const { data: business } = await supabase.from('settings').select('*').eq('group_id', gid).maybeSingle();
+                            const localLogo = (gid ? localStorage.getItem(`receiptLogo_${gid}`) : null) || localStorage.getItem('receiptLogo') || '';
+                            const logo = business?.logo_url || localLogo || '';
+
+                            printOrderToken({
+                              tokenNumber: bill.token_number || String(bill.invoice_number || bill.id || '1').slice(-2).padStart(2, '0'),
+                              invoiceNumber: bill.invoice_number || bill.id?.slice(0, 8),
+                              items: bill.items || [],
+                              orderType: bill.order_type || 'Takeaway / Pickup',
+                              business: { ...(business || {}), logo_url: logo },
+                              date: bill.created_at
+                            });
+                          }}
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '4px 10px', fontSize: '11px' }}
+                          title="Reprint Counter / Kitchen Order Token"
+                        >
+                          <span>🎫 Token</span>
+                        </button>
+                      </div>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '14px' }}>

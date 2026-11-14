@@ -1,6 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
-import { generateBillContent, sendToPrinter, printFormattedReceipt } from '../utils/printer';
+import {
+  generateBillContent,
+  sendToPrinter,
+  printFormattedReceipt,
+  printOrderToken,
+  printBothReceiptAndToken,
+  getNextTokenNumber
+} from '../utils/printer';
 import html2canvas from 'html2canvas';
 import {
   SearchIcon,
@@ -32,6 +39,8 @@ export default function QuickSale() {
   const [discountAmount, setDiscountAmount] = useState(0);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [lastBill, setLastBill] = useState(null);
+  const [orderType, setOrderType] = useState('Takeaway / Pickup');
+  const [modalSlipView, setModalSlipView] = useState('bill'); // 'bill' | 'token'
 
   // Wheel states
   const [showWheel, setShowWheel] = useState(false);
@@ -162,9 +171,14 @@ export default function QuickSale() {
         business || {}
       );
 
+      const tokenNumber = getNextTokenNumber(groupId);
+      const autoPrintToken = localStorage.getItem('autoPrintToken') === 'true';
+
       const billSnapshot = {
         content: printedBill,
         invoiceNumber,
+        tokenNumber,
+        orderType,
         billItems: [...billItems],
         finalAmount: totalAmount,
         paymentMode,
@@ -177,23 +191,45 @@ export default function QuickSale() {
       if (printerMode === 'ble') {
         sendToPrinter(printedBill).then((sentOk) => {
           if (!sentOk) {
-            printFormattedReceipt({
-              invoiceNumber,
-              items: billItems,
-              total: totalAmount,
-              paymentMode,
-              business: { ...(business || {}), logo_url: effectiveLogo },
-              subtotal: rawTotalAmount,
-              discount: finalDiscountValue,
-              logoUrl: effectiveLogo
-            });
+            if (autoPrintToken) {
+              printBothReceiptAndToken(
+                {
+                  invoiceNumber,
+                  items: billItems,
+                  total: totalAmount,
+                  paymentMode,
+                  business: { ...(business || {}), logo_url: effectiveLogo },
+                  subtotal: rawTotalAmount,
+                  discount: finalDiscountValue,
+                  logoUrl: effectiveLogo
+                },
+                {
+                  tokenNumber,
+                  invoiceNumber,
+                  items: billItems,
+                  orderType,
+                  business: { ...(business || {}), logo_url: effectiveLogo }
+                }
+              );
+            } else {
+              printFormattedReceipt({
+                invoiceNumber,
+                items: billItems,
+                total: totalAmount,
+                paymentMode,
+                business: { ...(business || {}), logo_url: effectiveLogo },
+                subtotal: rawTotalAmount,
+                discount: finalDiscountValue,
+                logoUrl: effectiveLogo
+              });
+            }
           }
         });
-        toast.success(`Invoice #${invoiceNumber} recorded`);
+        toast.success(`Invoice #${invoiceNumber} • Token #${tokenNumber} recorded`);
         finishCheckout();
       } else {
         setLastBill(billSnapshot);
-        toast.success(`Invoice #${invoiceNumber} generated`);
+        toast.success(`Invoice #${invoiceNumber} • Token #${tokenNumber} ready`);
       }
     } catch (err) {
       toast.error('Checkout failed: ' + err.message);
@@ -206,6 +242,7 @@ export default function QuickSale() {
     setBillItems([]);
     setShowCart(false);
     setLastBill(null);
+    setModalSlipView('bill');
     setDiscountPercentage(0);
     setDiscountAmount(0);
   };
@@ -383,6 +420,46 @@ export default function QuickSale() {
             <span style={{ fontVariantNumeric: 'tabular-nums' }}>-₹{finalDiscountValue.toLocaleString()}</span>
           </div>
         )}
+
+        {/* Order Type Toggle (Takeaway / Dine-in) */}
+        <div style={{ display: 'flex', background: 'var(--card-subtle)', border: '1px solid var(--border)', borderRadius: 'var(--radius-xs)', padding: '2px', marginBottom: '14px', gap: '3px' }}>
+          <button
+            type="button"
+            onClick={() => setOrderType('Takeaway / Pickup')}
+            style={{
+              flex: 1,
+              padding: '6px 8px',
+              fontSize: '11px',
+              fontWeight: 700,
+              borderRadius: 'var(--radius-xs)',
+              border: 'none',
+              cursor: 'pointer',
+              background: orderType === 'Takeaway / Pickup' ? 'var(--primary)' : 'transparent',
+              color: orderType === 'Takeaway / Pickup' ? '#ffffff' : 'var(--text-dim)',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            🥡 Takeaway (Token)
+          </button>
+          <button
+            type="button"
+            onClick={() => setOrderType('Dine-in')}
+            style={{
+              flex: 1,
+              padding: '6px 8px',
+              fontSize: '11px',
+              fontWeight: 700,
+              borderRadius: 'var(--radius-xs)',
+              border: 'none',
+              cursor: 'pointer',
+              background: orderType === 'Dine-in' ? 'var(--primary)' : 'transparent',
+              color: orderType === 'Dine-in' ? '#ffffff' : 'var(--text-dim)',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            🍽️ Dine-in
+          </button>
+        </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: '20px', fontWeight: 800, marginBottom: '16px' }}>
           <span>Net Payable</span>
@@ -660,7 +737,7 @@ export default function QuickSale() {
               <XIcon size={18} />
             </button>
 
-            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
               <div
                 style={{
                   width: '52px',
@@ -677,12 +754,55 @@ export default function QuickSale() {
                 <CheckCircle2Icon size={28} />
               </div>
               <h3 style={{ fontSize: '19px', fontWeight: 800 }}>Payment Complete!</h3>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '4px' }}>
-                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '4px' }}>
+                <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
                   Invoice: #{lastBill.invoiceNumber}
+                </span>
+                <span style={{ background: 'var(--primary)', color: '#ffffff', fontSize: '11px', fontWeight: 800, padding: '2px 8px', borderRadius: 'var(--radius-full)' }}>
+                  Token #{lastBill.tokenNumber}
                 </span>
                 <CopyButton text={lastBill.invoiceNumber} size={13} />
               </div>
+            </div>
+
+            {/* Slip View Switcher: Customer Bill vs Food Counter Token */}
+            <div style={{ display: 'flex', background: 'var(--card-subtle)', border: '1px solid var(--border)', borderRadius: 'var(--radius-full)', padding: '3px', marginBottom: '16px', gap: '4px' }}>
+              <button
+                type="button"
+                onClick={() => setModalSlipView('bill')}
+                style={{
+                  flex: 1,
+                  padding: '7px 12px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  borderRadius: 'var(--radius-full)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: modalSlipView === 'bill' ? 'var(--primary)' : 'transparent',
+                  color: modalSlipView === 'bill' ? '#ffffff' : 'var(--text-dim)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                📄 Customer Bill
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalSlipView('token')}
+                style={{
+                  flex: 1,
+                  padding: '7px 12px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  borderRadius: 'var(--radius-full)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: modalSlipView === 'token' ? 'var(--primary)' : 'transparent',
+                  color: modalSlipView === 'token' ? '#ffffff' : 'var(--text-dim)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                🎫 Counter Token (#{lastBill.tokenNumber})
+              </button>
             </div>
 
             {/* Printable Thermal Receipt Slip Container */}
@@ -700,109 +820,190 @@ export default function QuickSale() {
                 fontFamily: 'var(--font-mono)'
               }}
             >
-              <div style={{ textAlign: 'center', marginBottom: '14px' }}>
-                {lastBill.logoUrl && (
-                  <img
-                    src={lastBill.logoUrl}
-                    alt="Logo"
-                    style={{ maxHeight: '48px', margin: '0 auto 8px', display: 'block' }}
-                  />
-                )}
-                <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#000000' }}>
-                  {lastBill.business.business_name || 'SIMPLEBILL PRO'}
-                </h4>
-                {lastBill.business.location && (
-                  <div style={{ color: '#555', marginTop: '2px', fontSize: '11px' }}>
-                    {lastBill.business.location}
+              {modalSlipView === 'bill' ? (
+                <>
+                  <div style={{ textAlign: 'center', marginBottom: '14px' }}>
+                    {lastBill.logoUrl && (
+                      <img
+                        src={lastBill.logoUrl}
+                        alt="Logo"
+                        style={{ maxHeight: '48px', maxWidth: '160px', margin: '0 auto 8px', display: 'block', objectFit: 'contain' }}
+                      />
+                    )}
+                    <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#000000' }}>
+                      {lastBill.business.business_name || 'SIMPLEBILL PRO'}
+                    </h4>
+                    {lastBill.business.location && (
+                      <div style={{ color: '#555', marginTop: '2px', fontSize: '11px' }}>
+                        {lastBill.business.location}
+                      </div>
+                    )}
+                    {lastBill.business.phone && (
+                      <div style={{ color: '#555', fontSize: '11px' }}>Tel: {lastBill.business.phone}</div>
+                    )}
+                    {lastBill.business.gst_number && (
+                      <div style={{ color: '#555', fontSize: '11px' }}>GST: {lastBill.business.gst_number}</div>
+                    )}
                   </div>
-                )}
-                {lastBill.business.phone && (
-                  <div style={{ color: '#555', fontSize: '11px' }}>Tel: {lastBill.business.phone}</div>
-                )}
-                {lastBill.business.gst_number && (
-                  <div style={{ color: '#555', fontSize: '11px' }}>GST: {lastBill.business.gst_number}</div>
-                )}
-              </div>
 
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  borderTop: '1px dashed #bbb',
-                  borderBottom: '1px dashed #bbb',
-                  padding: '6px 0',
-                  marginBottom: '12px',
-                  fontSize: '11px'
-                }}
-              >
-                <div>
-                  <div>Inv: #{lastBill.invoiceNumber}</div>
-                  <div>Date: {new Date().toLocaleDateString('en-IN')}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div>Mode: {lastBill.paymentMode.toUpperCase()}</div>
-                  <div>Time: {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</div>
-                </div>
-              </div>
-
-              <table style={{ width: '100%', marginBottom: '12px', borderCollapse: 'collapse', fontSize: '11.5px' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid #eee' }}>
-                    <th style={{ textAlign: 'left', paddingBottom: '4px' }}>Item</th>
-                    <th style={{ textAlign: 'center', paddingBottom: '4px' }}>Qty</th>
-                    <th style={{ textAlign: 'right', paddingBottom: '4px' }}>Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lastBill.billItems.map((item, idx) => (
-                    <tr key={idx}>
-                      <td style={{ padding: '4px 0' }}>{item.name}</td>
-                      <td style={{ textAlign: 'center', padding: '4px 0' }}>{item.qty}</td>
-                      <td style={{ textAlign: 'right', padding: '4px 0' }}>
-                        ₹{(item.price * item.qty).toFixed(2)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              <div style={{ borderTop: '1px dashed #bbb', paddingTop: '8px', marginBottom: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span>Subtotal</span>
-                  <span>₹{lastBill.subtotal.toFixed(2)}</span>
-                </div>
-                {lastBill.discount > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', color: '#b91c1c' }}>
-                    <span>Discount</span>
-                    <span>-₹{lastBill.discount.toFixed(2)}</span>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      borderTop: '1px dashed #bbb',
+                      borderBottom: '1px dashed #bbb',
+                      padding: '6px 0',
+                      marginBottom: '12px',
+                      fontSize: '11px'
+                    }}
+                  >
+                    <div>
+                      <div>Inv: #{lastBill.invoiceNumber}</div>
+                      <div>Date: {new Date().toLocaleDateString('en-IN')}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div>Mode: {lastBill.paymentMode.toUpperCase()}</div>
+                      <div>Time: {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</div>
+                    </div>
                   </div>
-                )}
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontWeight: 800,
-                    fontSize: '15px',
-                    marginTop: '6px',
-                    borderTop: '1px solid #eee',
-                    paddingTop: '6px',
-                    color: '#000000'
-                  }}
-                >
-                  <span>Total Amount</span>
-                  <span>₹{lastBill.finalAmount.toFixed(2)}</span>
-                </div>
-              </div>
 
-              {lastBill.business.custom_message && (
-                <div style={{ textAlign: 'center', color: '#555', fontStyle: 'italic', borderTop: '1px dashed #bbb', paddingTop: '8px', fontSize: '10.5px' }}>
-                  {lastBill.business.custom_message}
+                  <table style={{ width: '100%', marginBottom: '12px', borderCollapse: 'collapse', fontSize: '11.5px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #eee' }}>
+                        <th style={{ textAlign: 'left', paddingBottom: '4px' }}>Item</th>
+                        <th style={{ textAlign: 'center', paddingBottom: '4px' }}>Qty</th>
+                        <th style={{ textAlign: 'right', paddingBottom: '4px' }}>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lastBill.billItems.map((item, idx) => (
+                        <tr key={idx}>
+                          <td style={{ padding: '4px 0' }}>{item.name}</td>
+                          <td style={{ textAlign: 'center', padding: '4px 0' }}>{item.qty}</td>
+                          <td style={{ textAlign: 'right', padding: '4px 0' }}>
+                            ₹{(item.price * item.qty).toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  <div style={{ borderTop: '1px dashed #bbb', paddingTop: '8px', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <span>Subtotal</span>
+                      <span>₹{lastBill.subtotal.toFixed(2)}</span>
+                    </div>
+                    {lastBill.discount > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', color: '#b91c1c' }}>
+                        <span>Discount</span>
+                        <span>-₹{lastBill.discount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        fontWeight: 800,
+                        fontSize: '15px',
+                        marginTop: '6px',
+                        borderTop: '1px solid #eee',
+                        paddingTop: '6px',
+                        color: '#000000'
+                      }}
+                    >
+                      <span>Total Amount</span>
+                      <span>₹{lastBill.finalAmount.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  {lastBill.business.custom_message && (
+                    <div style={{ textAlign: 'center', color: '#555', fontStyle: 'italic', borderTop: '1px dashed #bbb', paddingTop: '8px', fontSize: '10.5px' }}>
+                      {lastBill.business.custom_message}
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Food Counter Token View */
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontWeight: 800, fontSize: '13px', textTransform: 'uppercase', marginBottom: '2px' }}>
+                    {lastBill.business.business_name || 'FOOD COUNTER'}
+                  </div>
+                  <div style={{ fontSize: '10.5px', color: '#666', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    Food Counter Pickup Token
+                  </div>
+                  <div style={{ fontSize: '42px', fontWeight: 900, margin: '8px 0', letterSpacing: '-1px', color: '#000' }}>
+                    #{lastBill.tokenNumber}
+                  </div>
+                  <div style={{ display: 'inline-block', border: '1.5px solid #000', padding: '2px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', marginBottom: '12px' }}>
+                    {lastBill.orderType}
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '6px 0', fontSize: '11px', marginBottom: '12px', textAlign: 'left' }}>
+                    <div>
+                      <div>Inv: #{lastBill.invoiceNumber}</div>
+                      <div>Date: {new Date().toLocaleDateString('en-IN')}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div>Time: {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</div>
+                      <div>Total Items: {lastBill.billItems.reduce((acc, i) => acc + i.qty, 0)}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: 'left', marginBottom: '12px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', borderBottom: '1px solid #000', paddingBottom: '4px', marginBottom: '6px' }}>
+                      Items to Handover:
+                    </div>
+                    {lastBill.billItems.map((item, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 0', borderBottom: '1px dotted #ccc', fontSize: '13px' }}>
+                        <span style={{ width: '13px', height: '13px', border: '1.5px solid #000', borderRadius: '2px', display: 'inline-block', flexShrink: 0 }}></span>
+                        <strong style={{ fontSize: '14px', minWidth: '24px' }}>{item.qty}x</strong>
+                        <span style={{ fontWeight: 700 }}>{item.name}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ borderTop: '2px dashed #000', paddingTop: '10px', fontSize: '11px', fontWeight: 700, color: '#333' }}>
+                    Please show this token at counter for food collection
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Receipt Modal Action Buttons */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {/* Primary 1-Click: Print Both */}
+              <button
+                type="button"
+                onClick={() => {
+                  printBothReceiptAndToken(
+                    {
+                      invoiceNumber: lastBill.invoiceNumber,
+                      items: lastBill.billItems,
+                      total: lastBill.finalAmount,
+                      paymentMode: lastBill.paymentMode,
+                      business: lastBill.business,
+                      subtotal: lastBill.subtotal,
+                      discount: lastBill.discount,
+                      logoUrl: lastBill.logoUrl || lastBill.business?.logo_url || localStorage.getItem('receiptLogo') || ''
+                    },
+                    {
+                      tokenNumber: lastBill.tokenNumber,
+                      invoiceNumber: lastBill.invoiceNumber,
+                      items: lastBill.billItems,
+                      orderType: lastBill.orderType,
+                      business: lastBill.business
+                    }
+                  );
+                  toast.success('Dispatched Customer Bill & Food Token');
+                }}
+                className="btn btn-primary"
+                style={{ height: '44px', fontWeight: 800, fontSize: '13.5px', justifyContent: 'center' }}
+                title="Print Customer Receipt and Counter Token in sequence"
+              >
+                <PrinterIcon size={16} />
+                <span>⚡ Print Both (Bill + Token)</span>
+              </button>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 <button
                   type="button"
@@ -819,11 +1020,31 @@ export default function QuickSale() {
                     });
                   }}
                   className="btn btn-secondary"
-                  title="Print Slip with Store Logo"
+                  title="Print Customer Bill Only"
                 >
-                  <PrinterIcon size={16} />
-                  <span>Print Slip</span>
+                  <PrinterIcon size={14} />
+                  <span>Print Bill</span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    printOrderToken({
+                      tokenNumber: lastBill.tokenNumber,
+                      invoiceNumber: lastBill.invoiceNumber,
+                      items: lastBill.billItems,
+                      orderType: lastBill.orderType,
+                      business: lastBill.business
+                    });
+                  }}
+                  className="btn btn-secondary"
+                  title="Print Counter Token Slip"
+                >
+                  <span>🎫 Print Token</span>
+                </button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 <button
                   type="button"
                   onClick={async () => {
@@ -832,11 +1053,11 @@ export default function QuickSale() {
                       const canvas = await html2canvas(receiptRef.current, { scale: 2, useCORS: true });
                       canvas.toBlob(async (blob) => {
                         if (!blob) return;
-                        const file = new File([blob], `receipt_${lastBill.invoiceNumber}.png`, { type: 'image/png' });
+                        const file = new File([blob], `${modalSlipView === 'token' ? 'token' : 'receipt'}_${lastBill.invoiceNumber}.png`, { type: 'image/png' });
                         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
                           await navigator.share({
-                            title: 'Receipt',
-                            text: `Receipt for invoice #${lastBill.invoiceNumber}`,
+                            title: modalSlipView === 'token' ? 'Order Token' : 'Receipt',
+                            text: modalSlipView === 'token' ? `Token #${lastBill.tokenNumber}` : `Receipt for invoice #${lastBill.invoiceNumber}`,
                             files: [file]
                           });
                         } else {
@@ -846,7 +1067,7 @@ export default function QuickSale() {
                           a.download = file.name;
                           a.click();
                           URL.revokeObjectURL(url);
-                          toast.success('Receipt image downloaded');
+                          toast.success('Image downloaded');
                         }
                       }, 'image/png');
                     } catch (err) {
@@ -855,19 +1076,18 @@ export default function QuickSale() {
                   }}
                   className="btn btn-secondary"
                 >
-                  <Share2Icon size={16} />
-                  <span>Share PNG</span>
+                  <Share2Icon size={14} />
+                  <span>Share {modalSlipView === 'token' ? 'Token' : 'Bill'} PNG</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={finishCheckout}
+                  className="btn btn-secondary"
+                >
+                  <span>Done (Next Sale)</span>
                 </button>
               </div>
-
-              <button
-                type="button"
-                onClick={finishCheckout}
-                className="btn btn-primary"
-                style={{ width: '100%', height: '44px' }}
-              >
-                Done & Next Customer
-              </button>
             </div>
           </div>
         </div>

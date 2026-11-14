@@ -8,7 +8,7 @@ import Settings from './pages/Settings';
 import Auth from './pages/Auth';
 import Staff from './pages/Staff';
 import Expenses from './pages/Expenses';
-import { connectPrinter, autoReconnect, isPrinterConnected, sendToPrinter, generateBillContent, printFormattedReceipt } from './utils/printer';
+import { connectPrinter, autoReconnect, isPrinterConnected, sendToPrinter, generateBillContent, printFormattedReceipt, printOrderToken } from './utils/printer';
 
 // Components
 import {
@@ -616,6 +616,27 @@ function Dashboard({ user, currentGroup, businessSettings }) {
     }
   };
 
+  const printBillToken = async (bill) => {
+    try {
+      const items = Array.isArray(bill.items) ? bill.items : [];
+      const gid = localStorage.getItem('selectedGroupId');
+      const localLogo = (gid ? localStorage.getItem(`receiptLogo_${gid}`) : null) || localStorage.getItem('receiptLogo') || '';
+      const effectiveLogo = businessSettings?.logo_url || localLogo || '';
+
+      printOrderToken({
+        tokenNumber: bill.token_number || String(bill.id || '1').slice(-2).padStart(2, '0'),
+        invoiceNumber: bill.id?.slice(0, 8) || '0000',
+        items,
+        orderType: bill.order_type || 'Takeaway / Pickup',
+        business: { ...(businessSettings || {}), logo_url: effectiveLogo },
+        date: bill.created_at
+      });
+      toast.info('Pickup token slip dispatched');
+    } catch (err) {
+      toast.error('Token print failed: ' + err.message);
+    }
+  };
+
   const filteredBills = recentBills.filter((b) => {
     if (activityFilter === 'cash' && b.payment_mode !== 'cash') return false;
     if (activityFilter === 'online' && b.payment_mode === 'cash') return false;
@@ -1070,20 +1091,29 @@ function Dashboard({ user, currentGroup, businessSettings }) {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '8px' }}>
                   <button
                     type="button"
                     onClick={() => printBillReceipt(selectedBillModal)}
                     className="btn btn-primary"
-                    style={{ flex: 1, justifyContent: 'center' }}
+                    style={{ justifyContent: 'center' }}
                   >
-                    <PrinterIcon size={14} /> Print Receipt
+                    <PrinterIcon size={14} /> Receipt
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => printBillToken(selectedBillModal)}
+                    className="btn btn-secondary"
+                    style={{ justifyContent: 'center' }}
+                    title="Print Counter / Food Token"
+                  >
+                    <span>🎫 Token</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setSelectedBillModal(null)}
                     className="btn btn-secondary"
-                    style={{ flex: 1, justifyContent: 'center' }}
+                    style={{ justifyContent: 'center' }}
                   >
                     Close
                   </button>
