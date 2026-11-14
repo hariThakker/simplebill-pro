@@ -325,7 +325,7 @@ export default function BillHistory() {
                             const gid = localStorage.getItem('selectedGroupId');
                             const { data: business } = await supabase.from('settings').select('*').eq('group_id', gid).maybeSingle();
                             const localLogo = (gid ? localStorage.getItem(`receiptLogo_${gid}`) : null) || localStorage.getItem('receiptLogo') || '';
-                            const logo = business?.logo_url || localLogo || '';
+                            const logo = (localLogo && localLogo.startsWith('data:')) ? localLogo : (business?.logo_url || localLogo || '');
 
                             printFormattedReceipt({
                               invoiceNumber: bill.invoice_number || bill.id?.slice(0, 8),
@@ -349,7 +349,7 @@ export default function BillHistory() {
                             const gid = localStorage.getItem('selectedGroupId');
                             const { data: business } = await supabase.from('settings').select('*').eq('group_id', gid).maybeSingle();
                             const localLogo = (gid ? localStorage.getItem(`receiptLogo_${gid}`) : null) || localStorage.getItem('receiptLogo') || '';
-                            const logo = business?.logo_url || localLogo || '';
+                            const logo = (localLogo && localLogo.startsWith('data:')) ? localLogo : (business?.logo_url || localLogo || '');
 
                             printOrderToken({
                               tokenNumber: bill.token_number || String(bill.invoice_number || bill.id || '1').slice(-2).padStart(2, '0'),

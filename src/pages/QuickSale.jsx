@@ -161,7 +161,10 @@ export default function QuickSale() {
         .maybeSingle();
 
       const storedLocalLogo = (groupId ? localStorage.getItem(`receiptLogo_${groupId}`) : null) || localStorage.getItem('receiptLogo') || '';
-      const effectiveLogo = business?.logo_url || storedLocalLogo || '';
+      const effectiveLogo =
+        (storedLocalLogo && storedLocalLogo.startsWith('data:'))
+          ? storedLocalLogo
+          : (business?.logo_url || storedLocalLogo || '');
 
       const printedBill = generateBillContent(
         invoiceNumber,
@@ -208,7 +211,8 @@ export default function QuickSale() {
                   invoiceNumber,
                   items: billItems,
                   orderType,
-                  business: { ...(business || {}), logo_url: effectiveLogo }
+                  business: { ...(business || {}), logo_url: effectiveLogo },
+                  logoUrl: effectiveLogo
                 }
               );
             } else {
@@ -226,7 +230,7 @@ export default function QuickSale() {
           }
         });
         toast.success(`Invoice #${invoiceNumber} • Token #${tokenNumber} recorded`);
-        finishCheckout();
+        setLastBill(billSnapshot);
       } else {
         setLastBill(billSnapshot);
         toast.success(`Invoice #${invoiceNumber} • Token #${tokenNumber} ready`);
@@ -975,6 +979,12 @@ export default function QuickSale() {
               <button
                 type="button"
                 onClick={() => {
+                  const effectiveLogo =
+                    lastBill.logoUrl ||
+                    (lastBill.business?.logo_url) ||
+                    localStorage.getItem('receiptLogo') ||
+                    '';
+
                   printBothReceiptAndToken(
                     {
                       invoiceNumber: lastBill.invoiceNumber,
@@ -984,21 +994,22 @@ export default function QuickSale() {
                       business: lastBill.business,
                       subtotal: lastBill.subtotal,
                       discount: lastBill.discount,
-                      logoUrl: lastBill.logoUrl || lastBill.business?.logo_url || localStorage.getItem('receiptLogo') || ''
+                      logoUrl: effectiveLogo
                     },
                     {
                       tokenNumber: lastBill.tokenNumber,
                       invoiceNumber: lastBill.invoiceNumber,
                       items: lastBill.billItems,
                       orderType: lastBill.orderType,
-                      business: lastBill.business
+                      business: lastBill.business,
+                      logoUrl: effectiveLogo
                     }
                   );
                   toast.success('Dispatched Customer Bill & Food Token');
                 }}
                 className="btn btn-primary"
                 style={{ height: '44px', fontWeight: 800, fontSize: '13.5px', justifyContent: 'center' }}
-                title="Print Customer Receipt and Counter Token in sequence"
+                title="Print Customer Receipt and Counter Token in a single thermal ticket"
               >
                 <PrinterIcon size={16} />
                 <span>⚡ Print Both (Bill + Token)</span>
@@ -1008,6 +1019,12 @@ export default function QuickSale() {
                 <button
                   type="button"
                   onClick={() => {
+                    const effectiveLogo =
+                      lastBill.logoUrl ||
+                      (lastBill.business?.logo_url) ||
+                      localStorage.getItem('receiptLogo') ||
+                      '';
+
                     printFormattedReceipt({
                       invoiceNumber: lastBill.invoiceNumber,
                       items: lastBill.billItems,
@@ -1016,7 +1033,7 @@ export default function QuickSale() {
                       business: lastBill.business,
                       subtotal: lastBill.subtotal,
                       discount: lastBill.discount,
-                      logoUrl: lastBill.logoUrl || lastBill.business?.logo_url || localStorage.getItem('receiptLogo') || ''
+                      logoUrl: effectiveLogo
                     });
                   }}
                   className="btn btn-secondary"
@@ -1029,12 +1046,19 @@ export default function QuickSale() {
                 <button
                   type="button"
                   onClick={() => {
+                    const effectiveLogo =
+                      lastBill.logoUrl ||
+                      (lastBill.business?.logo_url) ||
+                      localStorage.getItem('receiptLogo') ||
+                      '';
+
                     printOrderToken({
                       tokenNumber: lastBill.tokenNumber,
                       invoiceNumber: lastBill.invoiceNumber,
                       items: lastBill.billItems,
                       orderType: lastBill.orderType,
-                      business: lastBill.business
+                      business: lastBill.business,
+                      logoUrl: effectiveLogo
                     });
                   }}
                   className="btn btn-secondary"

@@ -587,7 +587,7 @@ function Dashboard({ user, currentGroup, businessSettings }) {
       const items = Array.isArray(bill.items) ? bill.items : [];
       const gid = localStorage.getItem('selectedGroupId');
       const localLogo = (gid ? localStorage.getItem(`receiptLogo_${gid}`) : null) || localStorage.getItem('receiptLogo') || '';
-      const effectiveLogo = businessSettings?.logo_url || localLogo || '';
+      const effectiveLogo = (localLogo && localLogo.startsWith('data:')) ? localLogo : (businessSettings?.logo_url || localLogo || '');
 
       if (isPrinterConnected()) {
         const content = generateBillContent(
@@ -621,7 +621,7 @@ function Dashboard({ user, currentGroup, businessSettings }) {
       const items = Array.isArray(bill.items) ? bill.items : [];
       const gid = localStorage.getItem('selectedGroupId');
       const localLogo = (gid ? localStorage.getItem(`receiptLogo_${gid}`) : null) || localStorage.getItem('receiptLogo') || '';
-      const effectiveLogo = businessSettings?.logo_url || localLogo || '';
+      const effectiveLogo = (localLogo && localLogo.startsWith('data:')) ? localLogo : (businessSettings?.logo_url || localLogo || '');
 
       printOrderToken({
         tokenNumber: bill.token_number || String(bill.id || '1').slice(-2).padStart(2, '0'),
