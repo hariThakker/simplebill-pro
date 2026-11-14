@@ -8,7 +8,7 @@ import Settings from './pages/Settings';
 import Auth from './pages/Auth';
 import Staff from './pages/Staff';
 import Expenses from './pages/Expenses';
-import { connectPrinter, autoReconnect, isPrinterConnected } from './utils/printer';
+import { connectPrinter, autoReconnect, isPrinterConnected, sendToPrinter, fallbackNativePrint, generateBillContent } from './utils/printer';
 
 // Components
 import {
@@ -28,7 +28,11 @@ import {
   TrendingUpIcon,
   BanknoteIcon,
   CreditCardIcon,
-  RefreshCwIcon
+  RefreshCwIcon,
+  ArrowUpRightIcon,
+  DownloadIcon,
+  SearchIcon,
+  PlusIcon
 } from './components/Icons';
 import ScrollProgressBar from './components/ScrollProgressBar';
 import BackToTop from './components/BackToTop';
@@ -273,7 +277,48 @@ function AppContent() {
               </div>
             </div>
 
+            {/* V14 Center Horizontal Navigation Pill Tabs */}
+            <div className="v14-header-nav-wrap">
+              <nav className="v14-pill-nav" aria-label="Main Navigation">
+                <Link to="/" className={`v14-pill-tab ${location.pathname === '/' ? 'active' : ''}`}>
+                  Overview
+                </Link>
+                <Link to="/pos" className={`v14-pill-tab ${location.pathname === '/pos' ? 'active' : ''}`}>
+                  Point of Sale
+                </Link>
+                <Link to="/inventory" className={`v14-pill-tab ${location.pathname === '/inventory' ? 'active' : ''}`}>
+                  Inventory
+                </Link>
+                <Link to="/history" className={`v14-pill-tab ${location.pathname === '/history' ? 'active' : ''}`}>
+                  Activity
+                </Link>
+                <Link to="/expenses" className={`v14-pill-tab ${location.pathname === '/expenses' ? 'active' : ''}`}>
+                  Expenses
+                </Link>
+                {isOwner && (
+                  <Link to="/staff" className={`v14-pill-tab ${location.pathname === '/staff' ? 'active' : ''}`}>
+                    Team
+                  </Link>
+                )}
+                <Link to="/settings" className={`v14-pill-tab ${location.pathname === '/settings' ? 'active' : ''}`}>
+                  Manage
+                </Link>
+              </nav>
+            </div>
+
             <div className="header-right">
+              {/* V14 Quick Search Input */}
+              <div className="v14-header-search">
+                <SearchIcon size={14} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />
+                <input
+                  type="text"
+                  placeholder="Search catalog... ⌘K"
+                  className="v14-search-input"
+                  onFocus={() => navigate('/pos')}
+                  aria-label="Search catalog or invoices"
+                />
+              </div>
+
               {/* Printer Status Pill */}
               <button
                 type="button"
@@ -313,7 +358,7 @@ function AppContent() {
         {/* Main Content Viewport */}
         <main id="main-content" className="app-main-content">
           <Routes>
-            <Route path="/" element={<Dashboard user={session.user} currentGroup={currentGroupObj} />} />
+            <Route path="/" element={<Dashboard user={session.user} currentGroup={currentGroupObj} businessSettings={businessSettings} />} />
             <Route path="/pos" element={<QuickSale />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/history" element={<BillHistory />} />
@@ -385,10 +430,16 @@ function AppContent() {
   );
 }
 
-function Dashboard({ user, currentGroup }) {
+function Dashboard({ user, currentGroup, businessSettings }) {
+  const toast = useToast();
   const [stats, setStats] = useState({ t: 0, c: 0, o: 0, n: 0, e: 0 });
   const [chartData, setChartData] = useState([]);
   const [lowStockItems, setLowStockItems] = useState([]);
+  const [recentBills, setRecentBills] = useState([]);
+  const [activityFilter, setActivityFilter] = useState('all');
+  const [activitySearch, setActivitySearch] = useState('');
+  const [chartView, setChartView] = useState('volume'); // 'volume' | 'split'
+  const [selectedBillModal, setSelectedBillModal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
 
@@ -475,6 +526,16 @@ function Dashboard({ user, currentGroup }) {
 
       if (invData) setLowStockItems(invData);
 
+      // Fetch Recent Bills for live activity log
+      const { data: billsList } = await supabase
+        .from('bills')
+        .select('*')
+        .eq('group_id', gid)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (billsList) setRecentBills(billsList);
+
       setStats({ t, c, o, n, e });
       setChartData(Object.values(dailyMap).reverse());
       setLastUpdated(new Date());
@@ -494,26 +555,88 @@ function Dashboard({ user, currentGroup }) {
 
   const maxVal = Math.max(...chartData.map((d) => d.cash + d.online), 1);
   const netProfit = stats.t - stats.e;
+  const dailyTarget = Number(businessSettings?.daily_target) || 50000;
+  const targetPct = dailyTarget > 0 ? Math.min(100, Math.round((stats.t / dailyTarget) * 100)) : 0;
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const firstName = user?.user_metadata?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'Store Owner';
+
+  const handleExportCSV = () => {
+    if (recentBills.length === 0) {
+      toast.info('No activity logs available to export');
+      return;
+    }
+    const headers = 'Invoice ID,Date,Time,Payment Mode,Total Amount\n';
+    const rows = recentBills
+      .map((b) => `${b.id?.slice(0, 8)},${new Date(b.created_at).toLocaleDateString()},${new Date(b.created_at).toLocaleTimeString()},${b.payment_mode},${b.total_amount}`)
+      .join('\n');
+    const blob = new Blob([headers + rows], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sales_report_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Sales logs exported to CSV');
+  };
+
+  const printBillReceipt = async (bill) => {
+    try {
+      const items = Array.isArray(bill.items) ? bill.items : [];
+      const content = generateBillContent(
+        bill.id?.slice(0, 8) || '0000',
+        items,
+        Number(bill.total_amount),
+        bill.payment_mode || 'cash',
+        businessSettings || {}
+      );
+      if (isPrinterConnected()) {
+        await sendToPrinter(content);
+        toast.success('Dispatched to thermal printer');
+      } else {
+        fallbackNativePrint(content);
+        toast.info('Opened native print preview');
+      }
+    } catch (err) {
+      toast.error('Print failed: ' + err.message);
+    }
+  };
+
+  const filteredBills = recentBills.filter((b) => {
+    if (activityFilter === 'cash' && b.payment_mode !== 'cash') return false;
+    if (activityFilter === 'online' && b.payment_mode === 'cash') return false;
+    if (activitySearch.trim()) {
+      const q = activitySearch.toLowerCase();
+      const idMatch = b.id?.toLowerCase().includes(q);
+      const amtMatch = String(b.total_amount).includes(q);
+      return idMatch || amtMatch;
+    }
+    return true;
+  });
 
   return (
-    <div className="page-transition">
-      {/* Top Banner & Last Updated Date */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '24px' }}>
+    <div className="page-transition v14-dashboard-container">
+      {/* V14 Greeting Bar */}
+      <div className="v14-greeting-bar">
         <div>
-          <h2 style={{ fontSize: 'clamp(22px, 3.5vw, 28px)', fontWeight: 800 }}>
-            Hello, {user.user_metadata?.full_name?.split(' ')[0] || 'User'}
+          <div className="v14-greeting-sub">
+            {greeting}, {firstName}
+          </div>
+          <h2 className="v14-greeting-title">
+            Store Performance for {currentGroup?.name || 'Main Branch'}
           </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '13.5px', marginTop: '2px' }}>
-            Store overview for <strong style={{ color: 'var(--text)' }}>{currentGroup?.name || 'Selected Branch'}</strong>
+          <p className="v14-greeting-desc">
+            Real-time retail register, daily margins, and live transaction stream
           </p>
         </div>
 
-        {/* Last Updated Timestamp & Manual Refresh */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Action Controls */}
+        <div className="v14-greeting-actions">
           {lastUpdated && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-dim)', background: 'var(--card-subtle)', padding: '5px 10px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border)' }}>
+            <div className="v14-timestamp-pill">
               <ClockIcon size={12} />
-              <span>Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              <span>Live: {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
           )}
           <button
@@ -524,8 +647,21 @@ function Dashboard({ user, currentGroup }) {
             title="Refresh statistics"
           >
             <RefreshCwIcon size={13} className={loading ? 'skeleton-circle' : ''} />
-            <span>Refresh</span>
+            <span>Sync</span>
           </button>
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            className="btn btn-secondary btn-sm"
+            title="Export sales logs to CSV"
+          >
+            <DownloadIcon size={13} />
+            <span>Export CSV</span>
+          </button>
+          <Link to="/pos" className="btn btn-primary btn-sm">
+            <PlusIcon size={14} />
+            <span>New Sale (POS)</span>
+          </Link>
         </div>
       </div>
 
@@ -541,185 +677,400 @@ function Dashboard({ user, currentGroup }) {
         </div>
       ) : (
         <>
-          {/* Desert Sunset Hero Revenue Card */}
-          <div className="card card-hero" style={{ marginBottom: '20px', padding: 'clamp(20px, 4vw, 32px)' }}>
-            <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.9 }}>
-              Today's Gross Sales
-            </div>
-            <div style={{ fontSize: 'clamp(32px, 6vw, 48px)', fontWeight: 800, margin: '6px 0', fontFamily: 'var(--font-display)', fontVariantNumeric: 'tabular-nums' }}>
-              ₹{stats.t.toLocaleString()}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginTop: '10px' }}>
-              <div style={{ padding: '4px 12px', background: 'rgba(255, 255, 255, 0.2)', backdropFilter: 'blur(4px)', borderRadius: 'var(--radius-full)', fontSize: '12px', fontWeight: 700 }}>
-                {stats.n} {stats.n === 1 ? 'Transaction' : 'Transactions'}
-              </div>
-              <div style={{ fontSize: '12px', opacity: 0.9 }}>
-                Average bill: ₹{stats.n > 0 ? Math.round(stats.t / stats.n).toLocaleString() : 0}
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Metrics Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-            <div className="card" style={{ padding: '18px 20px', borderLeft: '4px solid var(--success)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <span style={{ color: 'var(--text-dim)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}>Net Profit</span>
-                <TrendingUpIcon size={16} style={{ color: 'var(--success)' }} />
-              </div>
-              <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--success)', fontVariantNumeric: 'tabular-nums' }}>
-                ₹{netProfit.toLocaleString()}
-              </div>
-            </div>
-
-            <div className="card" style={{ padding: '18px 20px', borderLeft: '4px solid var(--danger)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <span style={{ color: 'var(--text-dim)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}>Expenses</span>
-                <BanknoteIcon size={16} style={{ color: 'var(--danger)' }} />
-              </div>
-              <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--danger)', fontVariantNumeric: 'tabular-nums' }}>
-                ₹{stats.e.toLocaleString()}
-              </div>
-            </div>
-
-            <div className="card" style={{ padding: '18px 20px', borderLeft: '4px solid var(--accent-amber)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <span style={{ color: 'var(--text-dim)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}>Cash Collected</span>
-                <BanknoteIcon size={16} style={{ color: 'var(--accent-amber)' }} />
-              </div>
-              <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
-                ₹{stats.c.toLocaleString()}
-              </div>
-            </div>
-
-            <div className="card" style={{ padding: '18px 20px', borderLeft: '4px solid var(--accent-rose)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <span style={{ color: 'var(--text-dim)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}>Online / UPI</span>
-                <CreditCardIcon size={16} style={{ color: 'var(--accent-rose)' }} />
-              </div>
-              <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
-                ₹{stats.o.toLocaleString()}
-              </div>
-            </div>
-          </div>
-
-          {/* Low Stock Alert */}
-          {lowStockItems.length > 0 && (
-            <div className="card" style={{ padding: '20px', marginBottom: '24px', borderLeft: '4px solid var(--warning)', background: 'var(--warning-subtle)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-                <AlertTriangleIcon size={18} style={{ color: 'var(--warning)' }} />
-                <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--warning)' }}>
-                  Low Stock Attention Required ({lowStockItems.length} items)
-                </h3>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '10px' }}>
-                {lowStockItems.slice(0, 6).map((item, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      background: 'var(--card)',
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--border)',
-                      fontSize: '12.5px'
-                    }}
-                  >
-                    <span style={{ fontWeight: 600, color: 'var(--text)' }}>{item.name}</span>
-                    <span
-                      style={{
-                        padding: '2px 8px',
-                        borderRadius: 'var(--radius-full)',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        background: item.stock === 0 ? 'var(--danger-subtle)' : 'var(--warning-subtle)',
-                        color: item.stock === 0 ? 'var(--danger)' : 'var(--warning)'
-                      }}
-                    >
-                      {item.stock === 0 ? 'Out of stock' : `${item.stock} left`}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              {lowStockItems.length > 6 && (
-                <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '10px', textAlign: 'center' }}>
-                  + {lowStockItems.length - 6} more low stock items in inventory
+          {/* V14 3-Column Top Grid */}
+          <div className="v14-dashboard-grid">
+            {/* Column 1: Hero Gross Sales Card */}
+            <div className="v14-hero-card">
+              <div>
+                <div className="v14-hero-header">
+                  <span className="v14-card-eyebrow">Today's Gross Sales</span>
+                  <span className="v14-growth-pill">
+                    <TrendingUpIcon size={12} />
+                    <span>Active</span>
+                  </span>
                 </div>
-              )}
+                <div className="v14-hero-amount tabular-nums">
+                  ₹{stats.t.toLocaleString()}
+                </div>
+                <div className="v14-hero-sub-stats">
+                  <span className="v14-sub-stat-pill">
+                    <strong>{stats.n}</strong> {stats.n === 1 ? 'Bill' : 'Bills today'}
+                  </span>
+                  <span className="v14-sub-stat-text">
+                    Avg ticket: ₹{stats.n > 0 ? Math.round(stats.t / stats.n).toLocaleString() : 0}
+                  </span>
+                </div>
+              </div>
+
+              <div className="v14-hero-bottom">
+                <div className="v14-target-progress">
+                  <div className="v14-target-label">
+                    <span>Daily Sales Target</span>
+                    <strong>{targetPct}%</strong>
+                  </div>
+                  <div className="v14-progress-track">
+                    <div
+                      className="v14-progress-fill"
+                      style={{ width: `${targetPct}%` }}
+                    />
+                  </div>
+                  <div className="v14-target-footer">
+                    <span>₹{stats.t.toLocaleString()} of ₹{dailyTarget.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <div className="v14-hero-actions">
+                  <Link to="/pos" className="btn btn-primary btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
+                    <PlusIcon size={13} /> Quick Bill
+                  </Link>
+                  <Link to="/history" className="btn btn-secondary btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
+                    Sales Logs
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            {/* Column 2: 4 Metric Cards in 2x2 Grid */}
+            <div className="v14-stat-grid">
+              {/* Card 1: Total Gross Income */}
+              <div className="v14-stat-card">
+                <div className="v14-stat-top">
+                  <span className="v14-stat-label">Total Income</span>
+                  <div className="v14-stat-icon-box primary">
+                    <TrendingUpIcon size={14} />
+                  </div>
+                </div>
+                <div>
+                  <div className="v14-stat-value tabular-nums">
+                    ₹{stats.t.toLocaleString()}
+                  </div>
+                  <div className="v14-stat-sub">
+                    <span className="v14-dot online" /> {stats.n} registered bills
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 2: Operating Expenses */}
+              <div className="v14-stat-card">
+                <div className="v14-stat-top">
+                  <span className="v14-stat-label">Store Expenses</span>
+                  <div className="v14-stat-icon-box danger">
+                    <BanknoteIcon size={14} />
+                  </div>
+                </div>
+                <div>
+                  <div className="v14-stat-value tabular-nums" style={{ color: 'var(--danger)' }}>
+                    ₹{stats.e.toLocaleString()}
+                  </div>
+                  <div className="v14-stat-sub">
+                    Today's recorded costs
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 3: Net Profit Margin */}
+              <div className="v14-stat-card">
+                <div className="v14-stat-top">
+                  <span className="v14-stat-label">Net Profit</span>
+                  <div className="v14-stat-icon-box success">
+                    <ArrowUpRightIcon size={14} />
+                  </div>
+                </div>
+                <div>
+                  <div className="v14-stat-value tabular-nums" style={{ color: 'var(--success)' }}>
+                    ₹{netProfit.toLocaleString()}
+                  </div>
+                  <div className="v14-stat-sub">
+                    Gross revenue minus costs
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 4: Ticket Average */}
+              <div className="v14-stat-card">
+                <div className="v14-stat-top">
+                  <span className="v14-stat-label">Avg Basket</span>
+                  <div className="v14-stat-icon-box info">
+                    <POSIcon size={14} />
+                  </div>
+                </div>
+                <div>
+                  <div className="v14-stat-value tabular-nums">
+                    ₹{stats.n > 0 ? Math.round(stats.t / stats.n).toLocaleString() : 0}
+                  </div>
+                  <div className="v14-stat-sub">
+                    Average revenue per customer
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Column 3: Total Income & Sales Volume Bar Chart */}
+            <div className="v14-chart-card">
+              <div className="v14-chart-header">
+                <div>
+                  <h3 className="v14-chart-title">Sales Volume</h3>
+                  <span className="v14-chart-subtitle">Last 7 Days Activity</span>
+                </div>
+                <div className="v14-chart-tabs">
+                  <button
+                    type="button"
+                    onClick={() => setChartView('volume')}
+                    className={`v14-chart-tab-btn ${chartView === 'volume' ? 'active' : ''}`}
+                  >
+                    Volume
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChartView('split')}
+                    className={`v14-chart-tab-btn ${chartView === 'split' ? 'active' : ''}`}
+                  >
+                    Split
+                  </button>
+                </div>
+              </div>
+
+              {/* Bar Chart Body */}
+              <div className="v14-chart-body">
+                {chartData.map((d, i) => {
+                  const dayTotal = d.cash + d.online;
+                  const totalHeightPct = Math.max(10, (dayTotal / maxVal) * 100);
+                  const cashHeightPct = dayTotal > 0 ? (d.cash / dayTotal) * 100 : 0;
+                  const onlineHeightPct = dayTotal > 0 ? (d.online / dayTotal) * 100 : 0;
+
+                  return (
+                    <div key={i} className="v14-bar-col">
+                      <div className="v14-bar-val tabular-nums">
+                        {dayTotal > 0 ? `₹${dayTotal}` : '—'}
+                      </div>
+                      <div className="v14-bar-track">
+                        {chartView === 'volume' ? (
+                          <div
+                            className="v14-bar-fill"
+                            style={{ height: `${totalHeightPct}%` }}
+                            title={`${d.date}: ₹${dayTotal}`}
+                          />
+                        ) : (
+                          <div
+                            className="v14-bar-fill-split"
+                            style={{ height: `${totalHeightPct}%` }}
+                          >
+                            <div
+                              className="v14-bar-cash"
+                              style={{ height: `${cashHeightPct}%` }}
+                              title={`Cash: ₹${d.cash}`}
+                            />
+                            <div
+                              className="v14-bar-online"
+                              style={{ height: `${onlineHeightPct}%` }}
+                              title={`Online: ₹${d.online}`}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      <span className="v14-bar-date">{d.date}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Chart Legend */}
+              <div className="v14-chart-legend">
+                <div className="v14-legend-item">
+                  <span className="v14-legend-dot cash" />
+                  <span>Cash: ₹{stats.c.toLocaleString()}</span>
+                </div>
+                <div className="v14-legend-item">
+                  <span className="v14-legend-dot online" />
+                  <span>Online / UPI: ₹{stats.o.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Low Stock Warning Banner (if any) */}
+          {lowStockItems.length > 0 && (
+            <div className="v14-low-stock-alert">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertTriangleIcon size={17} style={{ color: 'var(--warning)', flexShrink: 0 }} />
+                <strong style={{ fontSize: '13px', color: 'var(--text)' }}>
+                  Low Stock Attention: {lowStockItems.length} items require replenishment
+                </strong>
+              </div>
+              <div className="v14-low-stock-chips">
+                {lowStockItems.slice(0, 4).map((item, idx) => (
+                  <span key={idx} className="v14-stock-chip">
+                    {item.name}: <strong>{item.stock} left</strong>
+                  </span>
+                ))}
+                <Link to="/inventory" className="v14-stock-link">
+                  Manage Stock &rarr;
+                </Link>
+              </div>
             </div>
           )}
 
-          {/* Sales Trend Bar Chart (Last 7 Days) */}
-          <div className="card" style={{ padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
+          {/* V14 Recent Activities Table Panel */}
+          <div className="v14-activity-panel">
+            <div className="v14-activity-header">
               <div>
-                <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Sales Volume (Last 7 Days)</h3>
-                <p style={{ fontSize: '12px', color: 'var(--text-dim)', marginTop: '2px' }}>Comparison of cash vs online revenue</p>
+                <h3 className="v14-activity-title">Recent Store Activities</h3>
+                <span className="v14-activity-sub">Live register sales, settled invoices & timestamps</span>
               </div>
-              <div style={{ display: 'flex', gap: '14px', fontSize: '11.5px', fontWeight: 600 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <div style={{ width: '10px', height: '10px', background: 'var(--accent-amber)', borderRadius: '3px' }} />
-                  <span>Cash</span>
+
+              <div className="v14-activity-tools">
+                <div className="v14-activity-filters">
+                  <button
+                    type="button"
+                    onClick={() => setActivityFilter('all')}
+                    className={`v14-filter-pill ${activityFilter === 'all' ? 'active' : ''}`}
+                  >
+                    All ({recentBills.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActivityFilter('cash')}
+                    className={`v14-filter-pill ${activityFilter === 'cash' ? 'active' : ''}`}
+                  >
+                    Cash
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActivityFilter('online')}
+                    className={`v14-filter-pill ${activityFilter === 'online' ? 'active' : ''}`}
+                  >
+                    Online / UPI
+                  </button>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <div style={{ width: '10px', height: '10px', background: 'var(--accent-rose)', borderRadius: '3px' }} />
-                  <span>Online</span>
+
+                <div className="v14-activity-search-wrap">
+                  <SearchIcon size={13} style={{ color: 'var(--text-dim)' }} />
+                  <input
+                    type="text"
+                    placeholder="Search invoice or amt..."
+                    value={activitySearch}
+                    onChange={(e) => setActivitySearch(e.target.value)}
+                    className="v14-activity-search-input"
+                    aria-label="Filter recent transactions"
+                  />
                 </div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '160px', gap: '10px', paddingBottom: '10px', borderBottom: '1px solid var(--border)', overflowX: 'auto' }}>
-              {chartData.map((d, i) => {
-                const dayTotal = d.cash + d.online;
-                const totalHeightPct = Math.max(8, (dayTotal / maxVal) * 100);
-                const cashHeightPct = dayTotal > 0 ? (d.cash / dayTotal) * 100 : 0;
-                const onlineHeightPct = dayTotal > 0 ? (d.online / dayTotal) * 100 : 0;
+            {/* Activities Rows */}
+            {filteredBills.length === 0 ? (
+              <div className="v14-empty-activities">
+                <p>No recent transactions match this filter.</p>
+              </div>
+            ) : (
+              <div className="v14-activities-list">
+                {filteredBills.map((bill) => {
+                  const billDate = new Date(bill.created_at);
+                  const formattedTime = billDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  const isCash = bill.payment_mode === 'cash';
 
-                return (
-                  <div key={i} style={{ flex: 1, minWidth: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
-                    <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '4px' }}>
-                      {dayTotal > 0 ? `₹${dayTotal}` : '—'}
+                  return (
+                    <div key={bill.id} className="v14-activity-row">
+                      <div className="v14-activity-left">
+                        <div className="v14-activity-icon">
+                          <POSIcon size={16} />
+                        </div>
+                        <div>
+                          <div className="v14-activity-title-text">
+                            Invoice #{bill.id?.slice(0, 8)}
+                          </div>
+                          <div className="v14-activity-meta">
+                            <span>{formattedTime}</span> &bull; <span>Walk-in Customer</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="v14-activity-center">
+                        <span className={`v14-payment-pill ${isCash ? 'cash' : 'online'}`}>
+                          {isCash ? 'Cash' : 'Online / UPI'}
+                        </span>
+                      </div>
+
+                      <div className="v14-activity-right">
+                        <div className="v14-activity-amount tabular-nums">
+                          +₹{Number(bill.total_amount).toLocaleString()}
+                        </div>
+                        <span className="v14-status-badge completed">
+                          Settled
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedBillModal(bill)}
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '4px 10px', fontSize: '11px' }}
+                          title="View & Print Receipt"
+                        >
+                          Receipt
+                        </button>
+                      </div>
                     </div>
-                    <div
-                      style={{
-                        width: '100%',
-                        maxWidth: '44px',
-                        height: `${totalHeightPct}%`,
-                        display: 'flex',
-                        flexDirection: 'column-reverse',
-                        borderRadius: '6px',
-                        overflow: 'hidden',
-                        background: 'var(--card-subtle)'
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: '100%',
-                          height: `${cashHeightPct}%`,
-                          background: 'var(--accent-amber)',
-                          transition: 'height 0.3s ease'
-                        }}
-                        title={`Cash: ₹${d.cash}`}
-                      />
-                      <div
-                        style={{
-                          width: '100%',
-                          height: `${onlineHeightPct}%`,
-                          background: 'var(--accent-rose)',
-                          transition: 'height 0.3s ease'
-                        }}
-                        title={`Online: ₹${d.online}`}
-                      />
-                    </div>
-                    <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, marginTop: '8px' }}>
-                      {d.date}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
+
+          {/* Receipt Modal */}
+          {selectedBillModal && (
+            <div className="modal-backdrop" onClick={() => setSelectedBillModal(null)}>
+              <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px', width: '92%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 800 }}>Invoice #{selectedBillModal.id?.slice(0, 8)}</h3>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBillModal(null)}
+                    className="btn btn-ghost btn-icon"
+                    style={{ width: '30px', height: '30px' }}
+                    aria-label="Close receipt modal"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div style={{ background: '#ffffff', color: '#111808', padding: '16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontFamily: 'var(--font-mono)', fontSize: '12px', marginBottom: '16px' }}>
+                  <div style={{ textAlign: 'center', fontWeight: 800, fontSize: '14px', marginBottom: '4px' }}>
+                    {businessSettings?.business_name || currentGroup?.name || 'SimpleBill Pro Store'}
+                  </div>
+                  <div style={{ textAlign: 'center', color: '#666', fontSize: '10.5px', marginBottom: '10px' }}>
+                    Date: {new Date(selectedBillModal.created_at).toLocaleString()}
+                  </div>
+                  <div style={{ borderTop: '1px dashed #ccc', margin: '8px 0' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, marginBottom: '6px' }}>
+                    <span>Payment Mode</span>
+                    <span style={{ textTransform: 'uppercase' }}>{selectedBillModal.payment_mode}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '15px', borderTop: '1px solid #111', paddingTop: '6px' }}>
+                    <span>Total Amount</span>
+                    <span>₹{Number(selectedBillModal.total_amount).toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => printBillReceipt(selectedBillModal)}
+                    className="btn btn-primary"
+                    style={{ flex: 1, justifyContent: 'center' }}
+                  >
+                    <PrinterIcon size={14} /> Print Receipt
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBillModal(null)}
+                    className="btn btn-secondary"
+                    style={{ flex: 1, justifyContent: 'center' }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

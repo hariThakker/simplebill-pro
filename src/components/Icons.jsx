@@ -142,6 +142,13 @@ export const ArrowUpIcon = (props) => (
   </IconBase>
 );
 
+export const ArrowUpRightIcon = (props) => (
+  <IconBase {...props}>
+    <line x1="7" y1="17" x2="17" y2="7" />
+    <polyline points="7 7 17 7 17 17" />
+  </IconBase>
+);
+
 export const EyeIcon = (props) => (
   <IconBase {...props}>
     <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
