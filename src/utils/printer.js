@@ -89,26 +89,138 @@ export async function connectPrinter() {
   }
 }
 
-export async function sendToPrinter(content) {
+/**
+ * Convert image URL or Data URL to ESC/POS raster bit image command (GS v 0)
+ * Works with any 58mm / 80mm thermal receipt printer over Web Bluetooth.
+ */
+export async function convertImageToEscPos(imgUrl, targetWidth = 384) {
+  if (!imgUrl || typeof document === 'undefined') return null;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        let width = Math.min(img.naturalWidth || 200, targetWidth);
+        width = Math.floor(width / 8) * 8; // Multiple of 8 dots
+        if (width < 64) width = 64;
+
+        const scale = width / (img.naturalWidth || width);
+        let height = Math.round((img.naturalHeight || width) * scale);
+        // Cap logo height to 180 dots to keep thermal print clean and prevent buffer overflow
+        if (height > 180) {
+          const rescale = 180 / height;
+          height = 180;
+          width = Math.floor((width * rescale) / 8) * 8;
+          if (width < 64) width = 64;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+
+        // Solid white background (prevent black blocks on transparent PNGs)
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const imgData = ctx.getImageData(0, 0, width, height);
+        const pixels = imgData.data;
+
+        const bytesPerLine = width / 8;
+        const rasterData = new Uint8Array(bytesPerLine * height);
+
+        for (let y = 0; y < height; y++) {
+          for (let xByte = 0; xByte < bytesPerLine; xByte++) {
+            let byteVal = 0;
+            for (let bit = 0; bit < 8; bit++) {
+              const x = xByte * 8 + bit;
+              const idx = (y * width + x) * 4;
+              const r = pixels[idx];
+              const g = pixels[idx + 1];
+              const b = pixels[idx + 2];
+              const a = pixels[idx + 3];
+
+              // Luminance calculation
+              const lum = a < 128 ? 255 : (0.299 * r + 0.587 * g + 0.114 * b);
+              // Threshold: if darker than 185, burn dot (1), else white (0)
+              if (lum < 185) {
+                byteVal |= (1 << (7 - bit));
+              }
+            }
+            rasterData[y * bytesPerLine + xByte] = byteVal;
+          }
+        }
+
+        const xL = bytesPerLine % 256;
+        const xH = Math.floor(bytesPerLine / 256);
+        const yL = height % 256;
+        const yH = Math.floor(height / 256);
+
+        // ESC @ (init), ESC a 1 (center align), GS v 0 0 xL xH yL yH
+        const header = new Uint8Array([
+          0x1B, 0x40,             // Init printer
+          0x1B, 0x61, 0x01,       // Center align
+          0x1D, 0x76, 0x30, 0x00, // GS v 0 0
+          xL, xH,
+          yL, yH
+        ]);
+
+        // Footer: ESC a 0 (reset to left align) + LF
+        const footer = new Uint8Array([0x1B, 0x61, 0x00, 0x0A]);
+
+        const fullImageCmd = new Uint8Array(header.length + rasterData.length + footer.length);
+        fullImageCmd.set(header, 0);
+        fullImageCmd.set(rasterData, header.length);
+        fullImageCmd.set(footer, header.length + rasterData.length);
+
+        resolve(fullImageCmd);
+      } catch (err) {
+        console.error('convertImageToEscPos failed', err);
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = imgUrl;
+  });
+}
+
+export async function sendToPrinter(content, logoUrl = '') {
   try {
     if (!bluetoothCharacteristic) {
       console.log('No printer connected, falling back to window print.');
-      // We don't alert here because we want to silently fallback to native print if user never connected
       return false;
     }
     
     console.log('Sending data to Bluetooth printer...');
-    // ESC/POS init command and trailing newlines
+    // ESC/POS init command
     const initCmd = '\x1B\x40';
-    const fullContent = initCmd + content + '\n\n\n\n';
-    
+
+    let imageBytes = null;
+    if (logoUrl) {
+      try {
+        imageBytes = await convertImageToEscPos(logoUrl, 384);
+      } catch (err) {
+        console.warn('Error converting logo to ESC/POS:', err);
+      }
+    }
+
     const encoder = new TextEncoder();
-    const data = encoder.encode(fullContent);
+    const textBytes = encoder.encode(initCmd + content + '\n\n\n\n');
+
+    let totalData;
+    if (imageBytes && imageBytes.length > 0) {
+      totalData = new Uint8Array(imageBytes.length + textBytes.length);
+      totalData.set(imageBytes, 0);
+      totalData.set(textBytes, imageBytes.length);
+    } else {
+      totalData = textBytes;
+    }
     
     // Chunk the data to avoid MTU size limits
     const chunkSize = 100;
-    for (let i = 0; i < data.length; i += chunkSize) {
-      const chunk = data.slice(i, i + chunkSize);
+    for (let i = 0; i < totalData.length; i += chunkSize) {
+      const chunk = totalData.slice(i, i + chunkSize);
       if (bluetoothCharacteristic.properties.writeWithoutResponse) {
         await bluetoothCharacteristic.writeValueWithoutResponse(chunk);
       } else {
@@ -201,13 +313,14 @@ export function getStoredLogo(groupId) {
 function createPrintIframe() {
   const hideFrame = document.createElement('iframe');
   hideFrame.style.position = 'fixed';
-  hideFrame.style.top = '-9999px';
-  hideFrame.style.left = '-9999px';
-  hideFrame.style.width = '340px';
-  hideFrame.style.height = '1200px';
+  hideFrame.style.bottom = '0';
+  hideFrame.style.right = '0';
+  hideFrame.style.width = '380px';
+  hideFrame.style.height = '1000px';
   hideFrame.style.border = 'none';
-  hideFrame.style.opacity = '0';
+  hideFrame.style.opacity = '0.01'; // Essential: Greater than 0 so Chrome compositor decodes and renders images into print spool
   hideFrame.style.pointerEvents = 'none';
+  hideFrame.style.zIndex = '-9999';
   document.body.appendChild(hideFrame);
   return hideFrame;
 }
@@ -227,7 +340,7 @@ function triggerIframePrint(hideFrame, doc, imgId) {
       if (hideFrame.parentNode) {
         document.body.removeChild(hideFrame);
       }
-    }, 1000);
+    }, 1500);
   };
 
   if (hideFrame.contentWindow) {
@@ -237,15 +350,26 @@ function triggerIframePrint(hideFrame, doc, imgId) {
 
   const imgEl = imgId ? doc.getElementById(imgId) : null;
   if (imgEl) {
+    const doPrint = () => setTimeout(triggerPrint, 350);
     if (imgEl.complete && imgEl.naturalWidth > 0) {
-      setTimeout(triggerPrint, 120);
+      if (imgEl.decode) {
+        imgEl.decode().then(doPrint).catch(doPrint);
+      } else {
+        doPrint();
+      }
     } else {
-      imgEl.onload = () => setTimeout(triggerPrint, 120);
-      imgEl.onerror = () => setTimeout(triggerPrint, 120);
-      setTimeout(triggerPrint, 500);
+      imgEl.onload = () => {
+        if (imgEl.decode) {
+          imgEl.decode().then(doPrint).catch(doPrint);
+        } else {
+          doPrint();
+        }
+      };
+      imgEl.onerror = doPrint;
+      setTimeout(doPrint, 800);
     }
   } else {
-    setTimeout(triggerPrint, 120);
+    setTimeout(triggerPrint, 150);
   }
 }
 
@@ -356,7 +480,7 @@ export function printFormattedReceipt(options = {}) {
             print-color-adjust: exact !important;
           }
           .receipt-logo {
-            max-height: 58px !important;
+            max-height: 64px !important;
             max-width: 180px !important;
             width: auto !important;
             height: auto !important;
@@ -365,6 +489,10 @@ export function printFormattedReceipt(options = {}) {
             object-fit: contain !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            filter: grayscale(100%) contrast(300%) brightness(80%) !important;
+            -webkit-filter: grayscale(100%) contrast(300%) brightness(80%) !important;
+            image-rendering: -webkit-optimize-contrast !important;
+            image-rendering: crisp-edges !important;
           }
           .receipt-header {
             text-align: center;
@@ -639,8 +767,8 @@ export function printOrderToken(options = {}) {
             margin-bottom: 12px;
           }
           .token-logo {
-            max-height: 48px !important;
-            max-width: 150px !important;
+            max-height: 58px !important;
+            max-width: 160px !important;
             width: auto !important;
             height: auto !important;
             display: block !important;
@@ -648,6 +776,10 @@ export function printOrderToken(options = {}) {
             object-fit: contain !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            filter: grayscale(100%) contrast(300%) brightness(80%) !important;
+            -webkit-filter: grayscale(100%) contrast(300%) brightness(80%) !important;
+            image-rendering: -webkit-optimize-contrast !important;
+            image-rendering: crisp-edges !important;
           }
           .store-name {
             font-size: 14px;
@@ -859,7 +991,7 @@ export function printCombinedReceiptAndToken(receiptOptions = {}, tokenOptions =
             print-color-adjust: exact !important;
           }
           .receipt-logo {
-            max-height: 58px !important;
+            max-height: 64px !important;
             max-width: 180px !important;
             width: auto !important;
             height: auto !important;
@@ -868,6 +1000,10 @@ export function printCombinedReceiptAndToken(receiptOptions = {}, tokenOptions =
             object-fit: contain !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            filter: grayscale(100%) contrast(300%) brightness(80%) !important;
+            -webkit-filter: grayscale(100%) contrast(300%) brightness(80%) !important;
+            image-rendering: -webkit-optimize-contrast !important;
+            image-rendering: crisp-edges !important;
           }
           .receipt-header {
             text-align: center;

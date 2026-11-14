@@ -2,9 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import {
   generateBillContent,
+  generateTokenContent,
   sendToPrinter,
   printFormattedReceipt,
   printOrderToken,
+  isPrinterConnected,
   getNextTokenNumber
 } from '../utils/printer';
 import html2canvas from 'html2canvas';
@@ -189,8 +191,8 @@ export default function QuickSale() {
         logoUrl: effectiveLogo
       };
 
-      if (printerMode === 'ble') {
-        sendToPrinter(printedBill).then((sentOk) => {
+      if (isPrinterConnected() || printerMode === 'ble') {
+        sendToPrinter(printedBill, effectiveLogo).then((sentOk) => {
           if (!sentOk) {
             printFormattedReceipt({
               invoiceNumber,
@@ -974,13 +976,31 @@ export default function QuickSale() {
               {/* Optional Token Print Action (Primary) */}
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   const effectiveLogo =
                     lastBill.logoUrl ||
                     (lastBill.business?.logo_url) ||
                     localStorage.getItem('receiptLogo') ||
                     '';
 
+                  const tokenContent = generateTokenContent(
+                    lastBill.tokenNumber,
+                    lastBill.invoiceNumber,
+                    lastBill.billItems,
+                    lastBill.orderType,
+                    lastBill.business
+                  );
+
+                  // If POS bill machine is connected via Bluetooth, print directly via ESC/POS!
+                  if (isPrinterConnected()) {
+                    const sentOk = await sendToPrinter(tokenContent, effectiveLogo);
+                    if (sentOk) {
+                      toast.success(`Token #${lastBill.tokenNumber} printed on POS machine!`);
+                      return;
+                    }
+                  }
+
+                  // Fallback to browser print dialog
                   printOrderToken({
                     tokenNumber: lastBill.tokenNumber,
                     invoiceNumber: lastBill.invoiceNumber,
@@ -989,7 +1009,7 @@ export default function QuickSale() {
                     business: lastBill.business,
                     logoUrl: effectiveLogo
                   });
-                  toast.success(`Token #${lastBill.tokenNumber} sent to printer!`);
+                  toast.success(`Token #${lastBill.tokenNumber} print triggered`);
                 }}
                 className="btn btn-primary"
                 style={{
@@ -1024,13 +1044,23 @@ export default function QuickSale() {
 
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     const effectiveLogo =
                       lastBill.logoUrl ||
                       (lastBill.business?.logo_url) ||
                       localStorage.getItem('receiptLogo') ||
                       '';
 
+                    // If POS bill machine is connected via Bluetooth, print directly via ESC/POS!
+                    if (isPrinterConnected()) {
+                      const sentOk = await sendToPrinter(lastBill.content, effectiveLogo);
+                      if (sentOk) {
+                        toast.success(`Bill #${lastBill.invoiceNumber} reprinted on POS machine!`);
+                        return;
+                      }
+                    }
+
+                    // Fallback to browser print dialog
                     printFormattedReceipt({
                       invoiceNumber: lastBill.invoiceNumber,
                       items: lastBill.billItems,
