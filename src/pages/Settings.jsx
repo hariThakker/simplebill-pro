@@ -59,6 +59,8 @@ export default function Settings() {
     const groupId = localStorage.getItem('selectedGroupId');
     if (!groupId) return;
 
+    const localLogo = (groupId ? localStorage.getItem(`receiptLogo_${groupId}`) : null) || localStorage.getItem('receiptLogo') || '';
+
     const { data } = await supabase
       .from('settings')
       .select('*')
@@ -66,6 +68,7 @@ export default function Settings() {
       .maybeSingle();
 
     if (data) {
+      const activeLogo = data.logo_url || localLogo || '';
       setFormData({
         business_name: data.business_name || '',
         location: data.location || '',
@@ -73,9 +76,13 @@ export default function Settings() {
         gst_number: data.gst_number || '',
         custom_message: data.custom_message || '',
         printer_mode: data.printer_mode || 'ble',
-        logo_url: data.logo_url || ''
+        logo_url: activeLogo
       });
-      setLogoUrl(data.logo_url || '');
+      setLogoUrl(activeLogo);
+      if (activeLogo) {
+        localStorage.setItem(`receiptLogo_${groupId}`, activeLogo);
+        localStorage.setItem('receiptLogo', activeLogo);
+      }
       localStorage.setItem('printerMode', data.printer_mode || 'ble');
     } else {
       setFormData({
@@ -85,9 +92,9 @@ export default function Settings() {
         gst_number: '',
         custom_message: '',
         printer_mode: 'ble',
-        logo_url: ''
+        logo_url: localLogo
       });
-      setLogoUrl('');
+      setLogoUrl(localLogo);
     }
   }, []);
 
@@ -172,6 +179,14 @@ export default function Settings() {
 
       if (error) throw error;
 
+      if (logoUrl) {
+        if (groupId) localStorage.setItem(`receiptLogo_${groupId}`, logoUrl);
+        localStorage.setItem('receiptLogo', logoUrl);
+      } else {
+        if (groupId) localStorage.removeItem(`receiptLogo_${groupId}`);
+        localStorage.removeItem('receiptLogo');
+      }
+
       setSaved(true);
       localStorage.setItem('printerMode', formData.printer_mode);
       localStorage.setItem('discountRates', discountRates);
@@ -186,8 +201,8 @@ export default function Settings() {
 
   const handleTestPrint = () => {
     const testContent = `\n================================\n       SIMPLEBILL PRO TEST\n================================\nPrinter check: PASS\nThermal slip feed OK.\nDate: ${new Date().toLocaleDateString('en-IN')}\nTime: ${new Date().toLocaleTimeString('en-IN')}\n================================\n\n\n\n`;
-    fallbackNativePrint(testContent);
-    toast.info('Test slip dispatched');
+    fallbackNativePrint(testContent, logoUrl);
+    toast.info('Test slip dispatched with logo');
   };
 
   const handleThemeSelect = (theme) => {
@@ -341,7 +356,13 @@ export default function Settings() {
                 <div>
                   <button
                     type="button"
-                    onClick={() => setLogoUrl('')}
+                    onClick={() => {
+                      setLogoUrl('');
+                      const gid = localStorage.getItem('selectedGroupId');
+                      if (gid) localStorage.removeItem(`receiptLogo_${gid}`);
+                      localStorage.removeItem('receiptLogo');
+                      toast.info('Logo removed');
+                    }}
                     className="btn btn-secondary btn-sm"
                     style={{ color: 'var(--danger)' }}
                   >
@@ -362,7 +383,14 @@ export default function Settings() {
                         return;
                       }
                       const reader = new FileReader();
-                      reader.onloadend = () => setLogoUrl(reader.result);
+                      reader.onloadend = () => {
+                        const res = reader.result;
+                        setLogoUrl(res);
+                        const gid = localStorage.getItem('selectedGroupId');
+                        if (gid) localStorage.setItem(`receiptLogo_${gid}`, res);
+                        localStorage.setItem('receiptLogo', res);
+                        toast.success('Logo uploaded and ready for receipts');
+                      };
                       reader.readAsDataURL(file);
                     }
                   }}

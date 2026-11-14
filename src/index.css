@@ -3045,6 +3045,18 @@ button, input, select, textarea {
     box-shadow: none !important;
   }
 
+  /* Receipt Slip Logo in Print */
+  .printable-receipt img,
+  .receipt-logo {
+    display: block !important;
+    max-height: 52px !important;
+    max-width: 170px !important;
+    margin: 0 auto 8px auto !important;
+    object-fit: contain !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   .printable-receipt table {
     width: 100% !important;
     border-collapse: collapse !important;

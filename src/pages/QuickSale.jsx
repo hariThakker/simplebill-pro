@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
-import { generateBillContent, sendToPrinter, fallbackNativePrint } from '../utils/printer';
+import { generateBillContent, sendToPrinter, printFormattedReceipt } from '../utils/printer';
 import html2canvas from 'html2canvas';
 import {
   SearchIcon,
@@ -151,6 +151,9 @@ export default function QuickSale() {
         .eq('group_id', groupId)
         .maybeSingle();
 
+      const storedLocalLogo = (groupId ? localStorage.getItem(`receiptLogo_${groupId}`) : null) || localStorage.getItem('receiptLogo') || '';
+      const effectiveLogo = business?.logo_url || storedLocalLogo || '';
+
       const printedBill = generateBillContent(
         invoiceNumber,
         billItems,
@@ -165,15 +168,26 @@ export default function QuickSale() {
         billItems: [...billItems],
         finalAmount: totalAmount,
         paymentMode,
-        business: business || {},
+        business: { ...(business || {}), logo_url: effectiveLogo },
         subtotal: rawTotalAmount,
         discount: finalDiscountValue,
-        logoUrl: business?.logo_url || ''
+        logoUrl: effectiveLogo
       };
 
       if (printerMode === 'ble') {
         sendToPrinter(printedBill).then((sentOk) => {
-          if (!sentOk) fallbackNativePrint(printedBill);
+          if (!sentOk) {
+            printFormattedReceipt({
+              invoiceNumber,
+              items: billItems,
+              total: totalAmount,
+              paymentMode,
+              business: { ...(business || {}), logo_url: effectiveLogo },
+              subtotal: rawTotalAmount,
+              discount: finalDiscountValue,
+              logoUrl: effectiveLogo
+            });
+          }
         });
         toast.success(`Invoice #${invoiceNumber} recorded`);
         finishCheckout();
@@ -792,9 +806,20 @@ export default function QuickSale() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 <button
                   type="button"
-                  onClick={() => window.print()}
+                  onClick={() => {
+                    printFormattedReceipt({
+                      invoiceNumber: lastBill.invoiceNumber,
+                      items: lastBill.billItems,
+                      total: lastBill.finalAmount,
+                      paymentMode: lastBill.paymentMode,
+                      business: lastBill.business,
+                      subtotal: lastBill.subtotal,
+                      discount: lastBill.discount,
+                      logoUrl: lastBill.logoUrl || lastBill.business?.logo_url || localStorage.getItem('receiptLogo') || ''
+                    });
+                  }}
                   className="btn btn-secondary"
-                  title="Print Slip using Browser / Thermal Printer"
+                  title="Print Slip with Store Logo"
                 >
                   <PrinterIcon size={16} />
                   <span>Print Slip</span>

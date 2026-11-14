@@ -8,7 +8,7 @@ import Settings from './pages/Settings';
 import Auth from './pages/Auth';
 import Staff from './pages/Staff';
 import Expenses from './pages/Expenses';
-import { connectPrinter, autoReconnect, isPrinterConnected, sendToPrinter, fallbackNativePrint, generateBillContent } from './utils/printer';
+import { connectPrinter, autoReconnect, isPrinterConnected, sendToPrinter, generateBillContent, printFormattedReceipt } from './utils/printer';
 
 // Components
 import {
@@ -585,19 +585,31 @@ function Dashboard({ user, currentGroup, businessSettings }) {
   const printBillReceipt = async (bill) => {
     try {
       const items = Array.isArray(bill.items) ? bill.items : [];
-      const content = generateBillContent(
-        bill.id?.slice(0, 8) || '0000',
-        items,
-        Number(bill.total_amount),
-        bill.payment_mode || 'cash',
-        businessSettings || {}
-      );
+      const gid = localStorage.getItem('selectedGroupId');
+      const localLogo = (gid ? localStorage.getItem(`receiptLogo_${gid}`) : null) || localStorage.getItem('receiptLogo') || '';
+      const effectiveLogo = businessSettings?.logo_url || localLogo || '';
+
       if (isPrinterConnected()) {
+        const content = generateBillContent(
+          bill.id?.slice(0, 8) || '0000',
+          items,
+          Number(bill.total_amount),
+          bill.payment_mode || 'cash',
+          businessSettings || {}
+        );
         await sendToPrinter(content);
         toast.success('Dispatched to thermal printer');
       } else {
-        fallbackNativePrint(content);
-        toast.info('Opened native print preview');
+        printFormattedReceipt({
+          invoiceNumber: bill.id?.slice(0, 8) || '0000',
+          items,
+          total: Number(bill.total_amount),
+          paymentMode: bill.payment_mode || 'cash',
+          business: businessSettings || {},
+          date: bill.created_at,
+          logoUrl: effectiveLogo
+        });
+        toast.info('Opened print preview with logo');
       }
     } catch (err) {
       toast.error('Print failed: ' + err.message);
@@ -1034,6 +1046,13 @@ function Dashboard({ user, currentGroup, businessSettings }) {
                 </div>
 
                 <div style={{ background: '#ffffff', color: '#111808', padding: '16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontFamily: 'var(--font-mono)', fontSize: '12px', marginBottom: '16px' }}>
+                  {(businessSettings?.logo_url || localStorage.getItem('receiptLogo')) && (
+                    <img
+                      src={businessSettings?.logo_url || localStorage.getItem('receiptLogo')}
+                      alt="Store Logo"
+                      style={{ maxHeight: '46px', maxWidth: '150px', margin: '0 auto 8px', display: 'block', objectFit: 'contain' }}
+                    />
+                  )}
                   <div style={{ textAlign: 'center', fontWeight: 800, fontSize: '14px', marginBottom: '4px' }}>
                     {businessSettings?.business_name || currentGroup?.name || 'SimpleBill Pro Store'}
                   </div>

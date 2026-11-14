@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabase';
+import { printFormattedReceipt } from '../utils/printer';
 import {
   HistoryIcon,
   SearchIcon,
@@ -319,7 +320,22 @@ export default function BillHistory() {
                       </span>
                       <button
                         type="button"
-                        onClick={() => window.print()}
+                        onClick={async () => {
+                          const gid = localStorage.getItem('selectedGroupId');
+                          const { data: business } = await supabase.from('settings').select('*').eq('group_id', gid).maybeSingle();
+                          const localLogo = (gid ? localStorage.getItem(`receiptLogo_${gid}`) : null) || localStorage.getItem('receiptLogo') || '';
+                          const logo = business?.logo_url || localLogo || '';
+
+                          printFormattedReceipt({
+                            invoiceNumber: bill.invoice_number || bill.id?.slice(0, 8),
+                            items: bill.items || [],
+                            total: Number(bill.total_amount),
+                            paymentMode: bill.payment_mode || 'cash',
+                            business: business || {},
+                            date: bill.created_at,
+                            logoUrl: logo
+                          });
+                        }}
                         className="btn btn-secondary btn-sm"
                         style={{ padding: '4px 10px', fontSize: '11px' }}
                       >
