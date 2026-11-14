@@ -1,19 +1,33 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../supabase';
+import {
+  StaffIcon,
+  PlusIcon,
+  XIcon,
+  EyeIcon,
+  EyeOffIcon,
+  ShieldCheckIcon,
+  AlertTriangleIcon,
+  RefreshCwIcon
+} from '../components/Icons';
+import { SkeletonList } from '../components/Skeleton';
+import { useToast } from '../components/Toast';
 
-// Secondary client to register staff without affecting owner session
+// Secondary client to register staff without affecting current session
 const authClient = createClient(
-  'https://qblpecdpudamykvgqalx.supabase.co', 
+  'https://qblpecdpudamykvgqalx.supabase.co',
   'sb_publishable_tlMLvbA4DsJnIrXWVMVbqA_KuSKdjel',
   { auth: { persistSession: false } }
 );
 
 export default function Staff() {
+  const toast = useToast();
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -21,6 +35,7 @@ export default function Staff() {
     full_name: '',
     role: 'staff'
   });
+  const [formErrors, setFormErrors] = useState({});
 
   useEffect(() => {
     checkRole();
@@ -37,53 +52,66 @@ export default function Staff() {
   async function fetchStaff() {
     const groupId = localStorage.getItem('selectedGroupId');
     if (!groupId) return;
-    
+
     setLoading(true);
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('role', 'staff')
-      .eq('group_id', groupId); // Filter staff by the currently selected branch
-    
+      .eq('group_id', groupId);
+
     if (error) {
       console.error('Error fetching staff:', error);
-      // If table is missing, error.code will be 'PGRST116' or similar
     }
-    
+
     if (data) setStaff(data);
     setLoading(false);
   }
 
+  const validate = () => {
+    const errors = {};
+    if (!formData.full_name.trim()) errors.full_name = 'Full name is required';
+    if (!formData.email.trim()) errors.email = 'Email address is required';
+    if (!formData.password || formData.password.length < 6) errors.password = 'Password must be at least 6 characters';
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   async function handleAddStaff(e) {
     e.preventDefault();
+    if (!validate()) return;
+
     const groupId = localStorage.getItem('selectedGroupId');
-    if (!groupId) return alert('Please select a branch (Group) first!');
-    
+    if (!groupId) {
+      toast.warning('Please select a branch first!');
+      return;
+    }
+
     setIsCreating(true);
-    
+
     try {
-      const { data, error } = await authClient.auth.signUp({
-        email: formData.email,
+      const { error } = await authClient.auth.signUp({
+        email: formData.email.trim(),
         password: formData.password,
         options: {
           data: {
-            full_name: formData.full_name,
+            full_name: formData.full_name.trim(),
             role: 'staff',
-            group_id: groupId // Link staff to the current branch
+            group_id: groupId
           }
         }
       });
 
       if (error) throw error;
 
-      alert(`Staff account created successfully for ${formData.full_name}!`);
+      toast.success(`Staff account created for ${formData.full_name.trim()}`);
       setShowAdd(false);
       setFormData({ email: '', password: '', full_name: '', role: 'staff' });
-      
-      // Wait 1.5 seconds for the Supabase trigger to finish creating the profile
+      setFormErrors({});
+
       setTimeout(fetchStaff, 1500);
     } catch (err) {
-      alert('Error creating staff: ' + err.message);
+      toast.error('Failed to create staff account: ' + err.message);
     } finally {
       setIsCreating(false);
     }
@@ -91,91 +119,256 @@ export default function Staff() {
 
   if (!isOwner) {
     return (
-      <div style={{ textAlign: 'center', padding: '100px 20px' }}>
-        <h2 style={{ fontSize: '24px', fontWeight: 900 }}>Access Denied</h2>
-        <p style={{ color: 'var(--text-dim)' }}>Only Company Owners can manage staff members.</p>
+      <div className="card page-transition" style={{ textAlign: 'center', padding: '80px 20px', maxWidth: '500px', margin: '40px auto' }}>
+        <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--danger-subtle)', color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <ShieldCheckIcon size={28} />
+        </div>
+        <h2 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '6px' }}>Owner Access Only</h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '13.5px' }}>
+          Staff management is reserved for Company Owners. Contact your store owner to adjust team roles.
+        </p>
       </div>
     );
   }
 
   return (
     <div className="page-transition">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
         <div>
-          <h2 style={{ fontSize: '28px', fontWeight: 900 }}>Staff Management</h2>
-          <p style={{ color: 'var(--text-dim)' }}>Manage your team and their access levels.</p>
+          <h2 style={{ fontSize: '26px', fontWeight: 800 }}>Staff & Team</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '13.5px' }}>
+            Manage cashier accounts and branch access permissions
+          </p>
         </div>
-        <button onClick={() => setShowAdd(true)} className="btn btn-primary" style={{ borderRadius: '12px' }}>
-          + Invite Staff
-        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={fetchStaff}
+            disabled={loading}
+            className="btn btn-ghost btn-sm"
+            title="Refresh team list"
+          >
+            <RefreshCwIcon size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowAdd(true);
+              setFormErrors({});
+            }}
+            className="btn btn-primary"
+          >
+            <PlusIcon size={16} />
+            <span>Add Staff Member</span>
+          </button>
+        </div>
       </div>
 
+      {/* Add Staff Modal */}
       {showAdd && (
-        <div className="cart-drawer-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-           <div className="card page-transition" style={{ maxWidth: '450px', width: '100%', padding: '32px' }}>
-              <h3 style={{ marginBottom: '8px' }}>Add New Staff</h3>
-              <p style={{ fontSize: '14px', color: 'var(--text-dim)', marginBottom: '24px' }}>Enter the details of your staff member.</p>
-              
-              <form onSubmit={handleAddStaff} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                 <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '8px' }}>FULL NAME</label>
-                    <input className="input-v2" required value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} placeholder="e.g. Rahul Sharma" />
-                 </div>
-                 <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '8px' }}>EMAIL ADDRESS</label>
-                    <input className="input-v2" required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="rahul@example.com" />
-                 </div>
-                 <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '8px' }}>SET PASSWORD</label>
-                    <input className="input-v2" required type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} placeholder="••••••••" />
-                 </div>
+        <div className="modal-backdrop" onClick={() => !isCreating && setShowAdd(false)}>
+          <div
+            className="modal-container page-transition"
+            style={{ maxWidth: '440px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="modal-close-btn"
+              onClick={() => !isCreating && setShowAdd(false)}
+              disabled={isCreating}
+              aria-label="Close"
+            >
+              <XIcon size={18} />
+            </button>
 
-                 <div style={{ background: 'rgba(var(--accent-raw), 0.05)', padding: '16px', borderRadius: '12px', border: '1px dashed var(--accent)' }}>
-                    <p style={{ fontSize: '12px', color: 'var(--accent)', fontWeight: 600, lineHeight: '1.4' }}>
-                       💡 <strong>Tip:</strong> After you create this account, the staff member can login immediately with the credentials above.
-                    </p>
-                 </div>
+            <span className="floating-contact-badge">Store Team</span>
+            <h3 style={{ fontSize: '19px', fontWeight: 800, marginTop: '4px', marginBottom: '4px' }}>
+              Create Staff Account
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '12.5px', marginBottom: '20px' }}>
+              Staff can process POS sales and record daily logs.
+            </p>
 
-                 <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
-                    <button type="submit" disabled={isCreating} className="btn btn-primary" style={{ flex: 1, borderRadius: '12px' }}>
-                       {isCreating ? 'Creating...' : 'Create Account'}
-                    </button>
-                    <button type="button" onClick={() => setShowAdd(false)} className="btn btn-ghost" style={{ flex: 1 }}>Cancel</button>
-                 </div>
-              </form>
-           </div>
+            <form onSubmit={handleAddStaff} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Full Name</label>
+                <input
+                  type="text"
+                  className={`input-v2 ${formErrors.full_name ? 'error' : ''}`}
+                  placeholder="e.g. Rahul Sharma"
+                  value={formData.full_name}
+                  onChange={(e) => {
+                    setFormData({ ...formData, full_name: e.target.value });
+                    if (formErrors.full_name) setFormErrors({ ...formErrors, full_name: null });
+                  }}
+                />
+                {formErrors.full_name && (
+                  <div className="form-error-msg">
+                    <AlertTriangleIcon size={13} /> {formErrors.full_name}
+                  </div>
+                )}
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Email Address</label>
+                <input
+                  type="email"
+                  className={`input-v2 ${formErrors.email ? 'error' : ''}`}
+                  placeholder="staff@store.com"
+                  value={formData.email}
+                  onChange={(e) => {
+                    setFormData({ ...formData, email: e.target.value });
+                    if (formErrors.email) setFormErrors({ ...formErrors, email: null });
+                  }}
+                />
+                {formErrors.email && (
+                  <div className="form-error-msg">
+                    <AlertTriangleIcon size={13} /> {formErrors.email}
+                  </div>
+                )}
+              </div>
+
+              {/* Password with Visibility Toggle */}
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Set Login Password</label>
+                <div className="form-control-wrapper">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    className={`input-v2 ${formErrors.password ? 'error' : ''}`}
+                    placeholder="At least 6 characters"
+                    value={formData.password}
+                    onChange={(e) => {
+                      setFormData({ ...formData, password: e.target.value });
+                      if (formErrors.password) setFormErrors({ ...formErrors, password: null });
+                    }}
+                    style={{ paddingRight: '40px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="input-icon-btn"
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                  </button>
+                </div>
+                {formErrors.password && (
+                  <div className="form-error-msg">
+                    <AlertTriangleIcon size={13} /> {formErrors.password}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAdd(false)}
+                  disabled={isCreating}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreating}
+                  className="btn btn-primary"
+                >
+                  {isCreating ? 'Creating...' : 'Create Account'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
-      <div className="card">
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px' }}>Loading team...</div>
-        ) : staff.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px' }}>
-            <div style={{ fontSize: '40px', marginBottom: '16px' }}>👥</div>
-            <p style={{ fontWeight: 600, color: 'var(--text-dim)' }}>No staff members added yet.</p>
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1px', background: 'var(--border)' }}>
-            {staff.map(m => (
-              <div key={m.id} style={{ background: 'var(--card)', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                  <div style={{ width: '40px', height: '40px', background: 'var(--bg)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
-                    {m.full_name?.charAt(0) || 'U'}
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 700 }}>{m.full_name || 'Staff Member'}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{m.email}</div>
-                  </div>
+      {/* Staff Directory List */}
+      {loading ? (
+        <SkeletonList count={3} />
+      ) : staff.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center', padding: '60px 20px', border: '2px dashed var(--border)' }}>
+          <StaffIcon size={40} style={{ color: 'var(--text-dim)', margin: '0 auto 12px' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '4px' }}>
+            No staff members in this branch
+          </h3>
+          <p style={{ fontSize: '13px', color: 'var(--text-dim)', marginBottom: '16px' }}>
+            Invite your store cashiers or attendants to give them POS access.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowAdd(true)}
+            className="btn btn-primary"
+          >
+            <PlusIcon size={16} />
+            <span>Add First Staff Member</span>
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {staff.map((member) => (
+            <div
+              key={member.id}
+              className="card"
+              style={{
+                padding: '16px 20px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '12px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '50%',
+                    background: 'var(--primary-subtle)',
+                    color: 'var(--primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 800,
+                    fontSize: '15px'
+                  }}
+                >
+                  {member.full_name?.charAt(0)?.toUpperCase() || 'S'}
                 </div>
-                <div style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: 'var(--accent)', background: 'rgba(var(--accent-raw), 0.1)', padding: '4px 10px', borderRadius: '20px' }}>
-                  {m.role}
+
+                <div>
+                  <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)' }}>
+                    {member.full_name || 'Staff Member'}
+                  </h4>
+                  <div style={{ fontSize: '12.5px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                    {member.email || 'No email specified'}
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span
+                  style={{
+                    padding: '3px 10px',
+                    borderRadius: 'var(--radius-full)',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    background: 'var(--card-subtle)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-secondary)'
+                  }}
+                >
+                  Cashier & POS
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

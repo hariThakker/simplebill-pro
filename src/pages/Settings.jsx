@@ -1,38 +1,53 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabase';
+import { fallbackNativePrint } from '../utils/printer';
+import {
+  SettingsIcon,
+  Building2Icon,
+  PrinterIcon,
+  SunIcon,
+  MoonIcon,
+  MonitorIcon,
+  PlusIcon,
+  Trash2Icon,
+  CheckCircle2Icon,
+  XIcon,
+  AlertTriangleIcon
+} from '../components/Icons';
+import ConfirmModal from '../components/ConfirmModal';
+import CopyButton from '../components/CopyButton';
+import { useToast } from '../components/Toast';
 
 export default function Settings() {
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [groups, setGroups] = useState([]);
   const [newGroupName, setNewGroupName] = useState('');
   const [addingGroup, setAddingGroup] = useState(false);
-  
+  const [currentTheme, setCurrentTheme] = useState(localStorage.getItem('theme') || 'system');
+
+  // Delete branch modal
+  const [groupToDelete, setGroupToDelete] = useState(null);
+  const [deletingGroup, setDeletingGroup] = useState(false);
+
   const [formData, setFormData] = useState({
     business_name: '',
     location: '',
     phone: '',
     gst_number: '',
     custom_message: '',
-    printer_mode: 'ble' // 'ble' or 'digital'
+    printer_mode: 'ble'
   });
   const [logoUrl, setLogoUrl] = useState('');
-  const [discountRates, setDiscountRates] = useState('');
+  const [discountRates, setDiscountRates] = useState(() => localStorage.getItem('discountRates') || '5,10,15,20,25');
 
-  useEffect(() => {
-    setDiscountRates(localStorage.getItem('discountRates') || '5,10,15,20,25');
-    fetchSettings();
-    fetchGroups();
-    window.addEventListener('groupChanged', fetchSettings);
-    return () => window.removeEventListener('groupChanged', fetchSettings);
-  }, []);
-
-  async function fetchGroups() {
+  const fetchGroups = useCallback(async () => {
     const { data } = await supabase.from('groups').select('*').order('name');
     if (data) setGroups(data);
-  }
+  }, []);
 
-  async function fetchSettings() {
+  const fetchSettings = useCallback(async () => {
     const groupId = localStorage.getItem('selectedGroupId');
     if (!groupId) return;
 
@@ -53,44 +68,68 @@ export default function Settings() {
         logo_url: data.logo_url || ''
       });
       setLogoUrl(data.logo_url || '');
-      // Save printer mode to local storage for quick access in POS
       localStorage.setItem('printerMode', data.printer_mode || 'ble');
     } else {
-      setFormData({ business_name: '', location: '', phone: '', gst_number: '', custom_message: '', printer_mode: 'ble', logo_url: '' });
+      setFormData({
+        business_name: '',
+        location: '',
+        phone: '',
+        gst_number: '',
+        custom_message: '',
+        printer_mode: 'ble',
+        logo_url: ''
+      });
       setLogoUrl('');
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    fetchSettings();
+    fetchGroups();
+    window.addEventListener('groupChanged', fetchSettings);
+    return () => window.removeEventListener('groupChanged', fetchSettings);
+  }, [fetchSettings, fetchGroups]);
 
   async function handleAddGroup(e) {
     e.preventDefault();
     if (!newGroupName.trim()) return;
     setAddingGroup(true);
-    
-    const { data, error } = await supabase.from('groups').insert([{ name: newGroupName }]).select();
-    
-    setAddingGroup(false);
-    if (!error) {
+
+    try {
+      const { error } = await supabase.from('groups').insert([{ name: newGroupName.trim() }]);
+      if (error) throw error;
+
       setNewGroupName('');
       fetchGroups();
       window.dispatchEvent(new Event('groupsUpdated'));
-      alert('Group added successfully!');
-    } else {
-      alert('Error adding group: ' + error.message);
+      toast.success(`Store branch "${newGroupName.trim()}" added!`);
+    } catch (err) {
+      toast.error('Failed to add branch: ' + err.message);
+    } finally {
+      setAddingGroup(false);
     }
   }
 
-  async function handleDeleteGroup(id, name) {
-    if (!confirm(`Are you sure you want to delete the group "${name}"? This action cannot be undone.`)) return;
-    const { error } = await supabase.from('groups').delete().eq('id', id);
-    if (!error) {
+  async function handleConfirmDeleteGroup() {
+    if (!groupToDelete) return;
+    setDeletingGroup(true);
+
+    try {
+      const { error } = await supabase.from('groups').delete().eq('id', groupToDelete.id);
+      if (error) throw error;
+
       fetchGroups();
       window.dispatchEvent(new Event('groupsUpdated'));
-      if (localStorage.getItem('selectedGroupId') === id) {
-         localStorage.removeItem('selectedGroupId');
-         window.dispatchEvent(new Event('groupChanged'));
+      if (localStorage.getItem('selectedGroupId') === groupToDelete.id) {
+        localStorage.removeItem('selectedGroupId');
+        window.dispatchEvent(new Event('groupChanged'));
       }
-    } else {
-      alert('Error deleting group: ' + error.message);
+      toast.success(`Branch "${groupToDelete.name}" deleted`);
+      setGroupToDelete(null);
+    } catch (err) {
+      toast.error('Failed to delete branch: ' + err.message);
+    } finally {
+      setDeletingGroup(false);
     }
   }
 
@@ -99,263 +138,370 @@ export default function Settings() {
     setLoading(true);
     const groupId = localStorage.getItem('selectedGroupId');
 
-    // Check if settings exist for this group
-    const { data: existing } = await supabase
-      .from('settings')
-      .select('id')
-      .eq('group_id', groupId)
-      .maybeSingle();
-
-    let error;
-    const payload = { ...formData, logo_url: logoUrl };
-    
-    if (existing) {
-      const { error: err } = await supabase
-        .from('settings')
-        .update(payload)
-        .eq('group_id', groupId);
-      error = err;
-    } else {
-      const { error: err } = await supabase
-        .from('settings')
-        .insert([{ ...payload, group_id: groupId }]);
-      error = err;
+    if (!groupId) {
+      toast.warning('Please select an active store branch first');
+      setLoading(false);
+      return;
     }
 
-    setLoading(false);
-    if (!error) {
+    try {
+      const { data: existing } = await supabase
+        .from('settings')
+        .select('id')
+        .eq('group_id', groupId)
+        .maybeSingle();
+
+      const payload = { ...formData, logo_url: logoUrl };
+
+      let error;
+      if (existing) {
+        const res = await supabase.from('settings').update(payload).eq('group_id', groupId);
+        error = res.error;
+      } else {
+        const res = await supabase.from('settings').insert([{ ...payload, group_id: groupId }]);
+        error = res.error;
+      }
+
+      if (error) throw error;
+
       setSaved(true);
       localStorage.setItem('printerMode', formData.printer_mode);
       localStorage.setItem('discountRates', discountRates);
+      toast.success('Configuration saved successfully');
       setTimeout(() => setSaved(false), 3000);
-    } else {
-      alert('Error saving settings: ' + error.message);
+    } catch (err) {
+      toast.error('Failed to save settings: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   }
 
+  const handleTestPrint = () => {
+    const testContent = `\n================================\n       SIMPLEBILL PRO TEST\n================================\nPrinter check: PASS\nThermal slip feed OK.\nDate: ${new Date().toLocaleDateString('en-IN')}\nTime: ${new Date().toLocaleTimeString('en-IN')}\n================================\n\n\n\n`;
+    fallbackNativePrint(testContent);
+    toast.info('Test slip dispatched');
+  };
+
+  const handleThemeSelect = (theme) => {
+    setCurrentTheme(theme);
+    localStorage.setItem('theme', theme);
+    window.dispatchEvent(new Event('themeChanged'));
+    toast.info(`Theme set to ${theme}`);
+  };
+
   return (
-    <div className="page-transition" style={{ maxWidth: '600px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '32px' }}>
-      
-      {/* Group Management Section */}
-      <section>
-        <div style={{ marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '28px', fontWeight: 900 }}>Groups & Branches</h2>
-          <p style={{ color: 'var(--text-dim)' }}>Manage your business units and locations.</p>
+    <div className="page-transition" style={{ maxWidth: '680px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '32px' }}>
+      {/* Header */}
+      <div>
+        <h2 style={{ fontSize: '26px', fontWeight: 800 }}>Store Settings</h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '13.5px' }}>
+          Configure business profile, branches, printers, and appearance
+        </p>
+      </div>
+
+      {/* Group & Branch Management */}
+      <section className="card" style={{ padding: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+          <Building2Icon size={20} style={{ color: 'var(--primary)' }} />
+          <h3 style={{ fontSize: '17px', fontWeight: 800 }}>Stores & Branches</h3>
         </div>
 
-        <div className="card" style={{ padding: '24px' }}>
-          <form onSubmit={handleAddGroup} style={{ display: 'flex', gap: '12px' }}>
-            <input 
-              required
-              className="input-v2"
-              placeholder="New Group Name (e.g. Branch B)"
-              value={newGroupName}
-              onChange={e => setNewGroupName(e.target.value)}
-            />
-            <button type="submit" disabled={addingGroup} className="btn btn-primary" style={{ whiteSpace: 'nowrap', borderRadius: '12px' }}>
-              {addingGroup ? 'Adding...' : 'Add Group'}
-            </button>
-          </form>
+        <form onSubmit={handleAddGroup} style={{ display: 'flex', gap: '10px', marginBottom: '18px' }}>
+          <input
+            type="text"
+            required
+            className="input-v2"
+            placeholder="New store / branch name (e.g. Koramangala Hub)"
+            value={newGroupName}
+            onChange={(e) => setNewGroupName(e.target.value)}
+          />
+          <button
+            type="submit"
+            disabled={addingGroup}
+            className="btn btn-primary"
+            style={{ whiteSpace: 'nowrap' }}
+          >
+            {addingGroup ? 'Adding...' : 'Add Branch'}
+          </button>
+        </form>
 
-          <div style={{ marginTop: '20px' }}>
-            <label style={{ display: 'block', fontWeight: 700, fontSize: '11px', color: 'var(--text-dim)', marginBottom: '12px', textTransform: 'uppercase' }}>Available Groups</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {groups.map(g => (
-                <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg)', color: 'var(--text)', padding: '6px 14px', border: '1px solid var(--border)', borderRadius: '10px', fontSize: '14px', fontWeight: 600 }}>
-                  {g.name}
-                  <button type="button" onClick={() => handleDeleteGroup(g.id, g.name)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '0 4px', fontSize: '16px', fontWeight: 'bold' }}>×</button>
-                </div>
-              ))}
+        <label className="form-label">Available Branches ({groups.length})</label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
+          {groups.map((g) => (
+            <div
+              key={g.id}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'var(--card-subtle)',
+                color: 'var(--text)',
+                padding: '6px 12px',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '13px',
+                fontWeight: 600
+              }}
+            >
+              <span>{g.name}</span>
+              <button
+                type="button"
+                onClick={() => setGroupToDelete(g)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-dim)',
+                  cursor: 'pointer',
+                  padding: '2px',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+                title={`Delete branch "${g.name}"`}
+                aria-label={`Delete ${g.name}`}
+              >
+                <XIcon size={14} />
+              </button>
             </div>
-          </div>
+          ))}
         </div>
       </section>
 
-      {/* Business Details Section */}
-      <section>
-        <div style={{ marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '28px', fontWeight: 900 }}>Configuration</h2>
-          <p style={{ color: 'var(--text-dim)' }}>Setup your billing experience.</p>
+      {/* Business Profile Configuration */}
+      <section className="card" style={{ padding: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+          <SettingsIcon size={20} style={{ color: 'var(--primary)' }} />
+          <h3 style={{ fontSize: '17px', fontWeight: 800 }}>Invoice & Receipt Profile</h3>
         </div>
 
-        <form onSubmit={handleSave} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div>
-            <label style={{ display: 'block', fontWeight: 700, fontSize: '13px', color: 'var(--text-dim)', marginBottom: '8px' }}>COMPANY NAME *</label>
-            <input 
+        {saved && (
+          <div className="form-success-banner">
+            <CheckCircle2Icon size={16} />
+            <span>Store settings saved successfully!</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Company / Business Name *</label>
+            <input
               required
               className="input-v2"
               value={formData.business_name}
-              onChange={e => setFormData({...formData, business_name: e.target.value})}
-              placeholder="e.g. My Awesome Store"
+              onChange={(e) => setFormData({ ...formData, business_name: e.target.value })}
+              placeholder="e.g. Coastal Brew & Cafe"
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-            <div>
-              <label style={{ display: 'block', fontWeight: 700, fontSize: '13px', color: 'var(--text-dim)', marginBottom: '8px' }}>PHONE NUMBER</label>
-              <input 
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Location / Address</label>
+              <input
                 className="input-v2"
-                value={formData.phone}
-                onChange={e => setFormData({...formData, phone: e.target.value})}
-                placeholder="+91 98765 43210"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                placeholder="Ground Floor, 12th Main Rd"
               />
             </div>
-            <div>
-              <label style={{ display: 'block', fontWeight: 700, fontSize: '13px', color: 'var(--text-dim)', marginBottom: '8px' }}>GST NUMBER</label>
-              <input 
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Store Hotline Phone</label>
+              <input
                 className="input-v2"
-                value={formData.gst_number}
-                onChange={e => setFormData({...formData, gst_number: e.target.value})}
-                placeholder="Optional"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="+91 98765 43210"
               />
             </div>
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontWeight: 700, fontSize: '13px', color: 'var(--text-dim)', marginBottom: '8px' }}>COMPANY LOGO</label>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">GST Identification Number (GSTIN)</label>
+            <input
+              className="input-v2 font-mono"
+              value={formData.gst_number}
+              onChange={(e) => setFormData({ ...formData, gst_number: e.target.value })}
+              placeholder="e.g. 29AAAAA0000A1Z5"
+            />
+          </div>
+
+          {/* Logo upload */}
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Receipt Logo</label>
             {logoUrl ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', background: 'var(--bg)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                <img src={logoUrl} alt="Logo Preview" style={{ width: '60px', height: '60px', objectFit: 'contain', borderRadius: '8px', background: 'white' }} />
-                <button type="button" onClick={() => setLogoUrl('')} className="btn btn-ghost" style={{ color: 'var(--danger)', fontSize: '12px', padding: '6px 12px' }}>
-                  Remove Logo
-                </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', background: 'var(--card-subtle)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                <img src={logoUrl} alt="Logo Preview" style={{ width: '50px', height: '50px', objectFit: 'contain', borderRadius: 'var(--radius-xs)', background: 'white', padding: '4px' }} />
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setLogoUrl('')}
+                    className="btn btn-secondary btn-sm"
+                    style={{ color: 'var(--danger)' }}
+                  >
+                    Remove Logo
+                  </button>
+                </div>
               </div>
             ) : (
               <div>
-                <input 
-                  type="file" 
+                <input
+                  type="file"
                   accept="image/*"
                   onChange={(e) => {
                     const file = e.target.files[0];
                     if (file) {
-                      if (file.size > 1024 * 1024) { // Limit to 1MB
-                        alert("Please select an image smaller than 1MB");
+                      if (file.size > 1024 * 1024) {
+                        toast.error('Please choose an image under 1MB');
                         return;
                       }
                       const reader = new FileReader();
-                      reader.onloadend = () => {
-                        setLogoUrl(reader.result);
-                      };
+                      reader.onloadend = () => setLogoUrl(reader.result);
                       reader.readAsDataURL(file);
                     }
                   }}
                   className="input-v2"
-                  style={{ padding: '10px' }}
+                  style={{ padding: '8px' }}
                 />
-                <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '8px' }}>
-                  Upload a small image (PNG/JPG, max 1MB) for your digital receipts.
+                <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px' }}>
+                  PNG or JPG logo rendered on digital receipts and printouts (Max 1MB).
                 </p>
               </div>
             )}
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontWeight: 700, fontSize: '13px', color: 'var(--text-dim)', marginBottom: '8px' }}>BILL FOOTER MESSAGE</label>
-            <textarea 
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Receipt Footer Note</label>
+            <textarea
               className="input-v2"
-              style={{ minHeight: '80px', resize: 'vertical' }}
+              style={{ minHeight: '70px', resize: 'vertical' }}
               value={formData.custom_message}
-              onChange={e => setFormData({...formData, custom_message: e.target.value})}
-              placeholder="e.g. Thank you for shopping! Visit again."
+              onChange={(e) => setFormData({ ...formData, custom_message: e.target.value })}
+              placeholder="e.g. Thank you for your visit! Follow @ourstore on Instagram."
             />
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontWeight: 700, fontSize: '13px', color: 'var(--text-dim)', marginBottom: '8px' }}>PRINTER CONNECTION</label>
+          {/* Printer Mode Selection */}
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Printer Mode</label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <button 
+              <button
                 type="button"
-                className="btn"
-                style={{ 
-                  background: formData.printer_mode === 'ble' ? 'var(--accent)' : 'var(--bg)',
-                  color: formData.printer_mode === 'ble' ? 'white' : 'var(--text-dim)',
-                  border: formData.printer_mode === 'ble' ? 'none' : '1px solid var(--border)',
-                  borderRadius: '12px'
-                }}
-                onClick={() => setFormData({...formData, printer_mode: 'ble'})}
+                className={`btn ${formData.printer_mode === 'ble' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setFormData({ ...formData, printer_mode: 'ble' })}
               >
-                Bluetooth (BLE)
+                <PrinterIcon size={16} />
+                <span>Bluetooth ESC/POS</span>
               </button>
-              <button 
+              <button
                 type="button"
-                className="btn"
-                style={{ 
-                  background: formData.printer_mode === 'digital' ? 'var(--accent)' : 'var(--bg)',
-                  color: formData.printer_mode === 'digital' ? 'white' : 'var(--text-dim)',
-                  border: formData.printer_mode === 'digital' ? 'none' : '1px solid var(--border)',
-                  borderRadius: '12px'
-                }}
-                onClick={() => setFormData({...formData, printer_mode: 'digital'})}
+                className={`btn ${formData.printer_mode === 'digital' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setFormData({ ...formData, printer_mode: 'digital' })}
               >
-                Digital Only
+                <span>Digital Slip Only</span>
               </button>
             </div>
-            <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '8px' }}>
-              {formData.printer_mode === 'ble' ? 'Bills will be sent directly to your connected thermal printer.' : 'A digital receipt will be shown on screen for you to share.'}
-            </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+              <p style={{ fontSize: '11.5px', color: 'var(--text-dim)' }}>
+                {formData.printer_mode === 'ble'
+                  ? 'Bills are dispatched directly to paired Web Bluetooth thermal printers.'
+                  : 'A digital slip pop-up appears on checkout for image download or native printing.'}
+              </p>
+              <button
+                type="button"
+                onClick={handleTestPrint}
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: '11px', padding: '4px 8px' }}
+              >
+                Test Print
+              </button>
+            </div>
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontWeight: 700, fontSize: '13px', color: 'var(--text-dim)', marginBottom: '8px' }}>DISCOUNT WHEEL RATES (%)</label>
-            <input 
-              className="input-v2"
+          {/* Discount Wheel Rates */}
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Discount Wheel Slices (%)</label>
+            <input
+              className="input-v2 font-mono"
               value={discountRates}
-              onChange={e => setDiscountRates(e.target.value)}
-              placeholder="e.g. 5,10,15,20,25"
+              onChange={(e) => setDiscountRates(e.target.value)}
+              placeholder="0,5,10,15,20,25"
             />
-            <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '8px' }}>
-              Comma-separated percentages for the Wagon Wheel in Quick POS.
+            <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px' }}>
+              Comma-separated percentage values for POS Promotional Discount Wheel.
             </p>
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={loading}
-            className="btn"
-            style={{ padding: '16px', background: saved ? 'var(--success)' : 'var(--primary)', color: 'white', borderRadius: '12px', fontSize: '15px', marginTop: '12px' }}
+            className="btn btn-primary btn-lg"
+            style={{ width: '100%', marginTop: '8px' }}
           >
-            {loading ? 'Saving...' : saved ? 'Settings Updated! ✅' : 'Save Configuration'}
+            {loading ? 'Saving Changes...' : 'Save Store Configuration'}
           </button>
         </form>
       </section>
 
-      {/* Appearance Section */}
-      <section>
-        <div style={{ marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '28px', fontWeight: 900 }}>Appearance</h2>
-          <p style={{ color: 'var(--text-dim)' }}>Personalize your interface.</p>
+      {/* Appearance & Dark Mode Toggle Section */}
+      <section className="card" style={{ padding: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+          <SunIcon size={20} style={{ color: 'var(--primary)' }} />
+          <h3 style={{ fontSize: '17px', fontWeight: 800 }}>Theme & Appearance</h3>
         </div>
+        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+          Choose your preferred theme across desktop and mobile devices.
+        </p>
 
-        <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-          {['system', 'light', 'dark'].map(t => (
-            <button 
-               key={t}
-               onClick={() => {
-                 localStorage.setItem('theme', t);
-                 window.dispatchEvent(new Event('themeChanged'));
-               }}
-               style={{ 
-                 padding: '16px 8px', 
-                 borderRadius: '16px', 
-                 border: '2px solid ' + (localStorage.getItem('theme') === t ? 'var(--accent)' : 'transparent'),
-                 background: localStorage.getItem('theme') === t ? 'rgba(var(--accent-raw), 0.1)' : 'var(--bg)',
-                 color: localStorage.getItem('theme') === t ? 'var(--accent)' : 'var(--text-dim)',
-                 fontWeight: 800,
-                 textTransform: 'capitalize',
-                 cursor: 'pointer',
-                 display: 'flex',
-                 flexDirection: 'column',
-                 alignItems: 'center',
-                 gap: '8px'
-               }}
-            >
-              <span style={{ fontSize: '20px' }}>{t === 'light' ? '☀️' : t === 'dark' ? '🌙' : '🌓'}</span>
-              <span style={{ fontSize: '12px' }}>{t}</span>
-            </button>
-          ))}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+          {[
+            { id: 'light', label: 'Light', icon: SunIcon, desc: 'Desert Sand' },
+            { id: 'dark', label: 'Dark', icon: MoonIcon, desc: 'Dusk Obsidian' },
+            { id: 'system', label: 'System', icon: MonitorIcon, desc: 'Match Device' }
+          ].map((t) => {
+            const Icon = t.icon;
+            const isSelected = currentTheme === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => handleThemeSelect(t.id)}
+                className={`card ${isSelected ? 'active' : ''}`}
+                style={{
+                  padding: '16px 12px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  borderColor: isSelected ? 'var(--primary)' : 'var(--border)',
+                  background: isSelected ? 'var(--primary-subtle)' : 'var(--card-subtle)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Icon size={22} style={{ color: isSelected ? 'var(--primary)' : 'var(--text-dim)' }} />
+                <span style={{ fontSize: '13px', fontWeight: 700, color: isSelected ? 'var(--primary)' : 'var(--text)' }}>
+                  {t.label}
+                </span>
+                <span style={{ fontSize: '10.5px', color: 'var(--text-dim)' }}>
+                  {t.desc}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </section>
+
+      {/* Confirm Branch Deletion Modal */}
+      <ConfirmModal
+        isOpen={!!groupToDelete}
+        title="Delete Store Branch?"
+        message={`Are you sure you want to delete branch "${groupToDelete?.name}"? Invoices and inventory records associated with this branch should be reviewed.`}
+        confirmText="Yes, Delete Branch"
+        cancelText="Cancel"
+        isDestructive={true}
+        loading={deletingGroup}
+        onConfirm={handleConfirmDeleteGroup}
+        onCancel={() => setGroupToDelete(null)}
+      />
     </div>
   );
 }
-

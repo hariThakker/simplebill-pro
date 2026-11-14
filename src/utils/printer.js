@@ -38,7 +38,9 @@ async function performConnection(device) {
              break;
            }
          }
-       } catch (e) {}
+       } catch {
+         // Service characteristics unreadable or unsupported
+       }
        if (foundChar) break;
      }
 
@@ -216,4 +218,8 @@ export function fallbackNativePrint(content) {
 
 export function isPrinterConnected() {
   return !!bluetoothCharacteristic;
+}
+
+export function getConnectedDevice() {
+  return bluetoothDevice;
 }
