@@ -32,7 +32,8 @@ import {
   ArrowUpRightIcon,
   DownloadIcon,
   SearchIcon,
-  PlusIcon
+  PlusIcon,
+  Building2Icon
 } from './components/Icons';
 import ScrollProgressBar from './components/ScrollProgressBar';
 import BackToTop from './components/BackToTop';
@@ -40,7 +41,7 @@ import SkipToContent from './components/SkipToContent';
 import CookieBanner from './components/CookieBanner';
 import FloatingContact from './components/FloatingContact';
 import MobileMenu from './components/MobileMenu';
-import DesktopSidebar from './components/DesktopSidebar';
+import ThemeToggle from './components/ThemeToggle';
 import { ToastProvider, useToast } from './components/Toast';
 import { SkeletonMetric, SkeletonCard } from './components/Skeleton';
 
@@ -223,42 +224,29 @@ function AppContent() {
       {/* Top Scroll Progress Bar */}
       <ScrollProgressBar />
 
-      {/* Dedicated Desktop Sidebar (Fixed left on screen >= 1024px) */}
-      <DesktopSidebar
-        user={session.user}
-        groups={groups}
-        selectedGroup={selectedGroup}
-        onSelectGroup={handleGroupSelect}
-        isConnected={isConnected}
-        onConnectPrinter={handleConn}
-        onLogout={handleLogout}
-        isOwner={isOwner}
-        theme={theme}
-        onThemeChange={handleThemeChange}
-      />
-
-      {/* Main Content Column */}
+      {/* Main Content Column with Unified Top Navigation */}
       <div className="app-main-area">
-        {/* Sticky Header */}
+        {/* Sticky Header with Unified Navigation (Mobile & Desktop) */}
         <header className="app-header">
           <div className="header-container">
+            {/* Header Left: Brand & Branch Dropdown */}
             <div className="header-left">
-              {/* Brand logo shown on mobile/tablet */}
-              <Link to="/" className="brand-wrapper mobile-only-brand">
+              <Link to="/" className="brand-wrapper" title="SimpleBill Pro POS">
                 <div className="brand-logo-badge">SB</div>
-                <div>
+                <div className="brand-text-wrap">
                   <h1 className="brand-title">
                     SimpleBill <span>Pro</span>
                   </h1>
                 </div>
               </Link>
 
-              {/* Branch Selector (Mobile/Tablet) */}
-              <div className="branch-select-wrapper mobile-only-branch">
+              {/* Branch Selector Pill Dropdown */}
+              <div className="header-branch-select-wrap">
+                <Building2Icon size={13} className="header-branch-icon" />
                 <select
                   value={selectedGroup}
                   onChange={(e) => handleGroupSelect(e.target.value)}
-                  className="branch-select"
+                  className="header-branch-select"
                   aria-label="Select active store branch"
                 >
                   {groups.map((g) => (
@@ -267,17 +255,11 @@ function AppContent() {
                     </option>
                   ))}
                 </select>
-                <ChevronDownIcon size={14} className="branch-select-arrow" />
-              </div>
-
-              {/* Desktop Breadcrumb / Location Badge */}
-              <div className="desktop-header-branch-pill">
-                <span className="desktop-branch-label">Branch:</span>
-                <strong className="desktop-branch-name">{currentGroupObj?.name || 'Main Branch'}</strong>
+                <ChevronDownIcon size={12} className="header-branch-arrow" />
               </div>
             </div>
 
-            {/* V14 Center Horizontal Navigation Pill Tabs */}
+            {/* Header Center: V14 Pill Navigation Tabs */}
             <div className="v14-header-nav-wrap">
               <nav className="v14-pill-nav" aria-label="Main Navigation">
                 <Link to="/" className={`v14-pill-tab ${location.pathname === '/' ? 'active' : ''}`}>
@@ -306,10 +288,11 @@ function AppContent() {
               </nav>
             </div>
 
+            {/* Header Right: Search, Printer, Theme, User Chip */}
             <div className="header-right">
-              {/* V14 Quick Search Input */}
+              {/* Quick Search Input */}
               <div className="v14-header-search">
-                <SearchIcon size={14} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />
+                <SearchIcon size={13} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />
                 <input
                   type="text"
                   placeholder="Search catalog... ⌘K"
@@ -327,11 +310,40 @@ function AppContent() {
                 title={isConnected ? 'Thermal Printer Connected' : 'Click to connect thermal printer'}
               >
                 <span className={`status-dot ${isConnected ? 'online' : 'offline'}`} />
-                <PrinterIcon size={14} />
-                <span>{isConnected ? 'Printer Ready' : 'Connect Printer'}</span>
+                <PrinterIcon size={13} />
+                <span className="printer-status-text">{isConnected ? 'Printer Ready' : 'Connect Printer'}</span>
               </button>
 
-              {/* Mobile Menu Trigger Button (Hidden on >=1024px) */}
+              {/* Header Theme Toggle */}
+              <div className="header-theme-toggle-wrap">
+                <ThemeToggle theme={theme} onChange={handleThemeChange} />
+              </div>
+
+              {/* User Profile Chip */}
+              <div className="header-user-chip">
+                <div className="header-user-avatar">
+                  {session.user?.user_metadata?.full_name?.charAt(0)?.toUpperCase() || session.user?.email?.charAt(0)?.toUpperCase() || 'U'}
+                </div>
+                <div className="header-user-info">
+                  <span className="header-user-name">
+                    {session.user?.user_metadata?.full_name?.split(' ')[0] || session.user?.email?.split('@')[0] || 'User'}
+                  </span>
+                  <span className="header-user-badge">
+                    {isOwner ? 'Owner' : 'Staff'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="header-logout-btn"
+                  title="Sign Out"
+                  aria-label="Sign Out"
+                >
+                  <LogOutIcon size={14} />
+                </button>
+              </div>
+
+              {/* Mobile Menu Trigger Button (Small screens) */}
               <button
                 type="button"
                 className="btn btn-secondary btn-icon mobile-menu-trigger"
@@ -339,17 +351,6 @@ function AppContent() {
                 aria-label="Open navigation menu"
               >
                 <MenuIcon size={18} />
-              </button>
-
-              {/* Logout button (Desktop) */}
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="btn btn-ghost btn-icon desktop-header-logout"
-                title="Sign Out"
-                aria-label="Sign Out"
-              >
-                <LogOutIcon size={17} />
               </button>
             </div>
           </div>
