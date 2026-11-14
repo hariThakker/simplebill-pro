@@ -37,6 +37,7 @@ import SkipToContent from './components/SkipToContent';
 import CookieBanner from './components/CookieBanner';
 import FloatingContact from './components/FloatingContact';
 import MobileMenu from './components/MobileMenu';
+import DesktopSidebar from './components/DesktopSidebar';
 import { ToastProvider, useToast } from './components/Toast';
 import { SkeletonMetric, SkeletonCard } from './components/Skeleton';
 
@@ -184,101 +185,124 @@ function AppContent() {
   const currentGroupObj = groups.find((g) => g.id === selectedGroup);
 
   return (
-    <div className="v2-layout">
+    <div className="app-shell">
       {/* Keyboard Accessibility Skip Link */}
       <SkipToContent />
 
       {/* Top Scroll Progress Bar */}
       <ScrollProgressBar />
 
-      {/* Sticky Header */}
-      <header className="app-header">
-        <div className="header-container">
-          <div className="header-left">
-            <Link to="/" className="brand-wrapper">
-              <div className="brand-logo-badge">SB</div>
-              <div>
-                <h1 className="brand-title">
-                  SimpleBill <span>Pro</span>
-                </h1>
+      {/* Dedicated Desktop Sidebar (Fixed left on screen >= 1024px) */}
+      <DesktopSidebar
+        user={session.user}
+        groups={groups}
+        selectedGroup={selectedGroup}
+        onSelectGroup={handleGroupSelect}
+        isConnected={isConnected}
+        onConnectPrinter={handleConn}
+        onLogout={handleLogout}
+        isOwner={isOwner}
+        theme={theme}
+        onThemeChange={handleThemeChange}
+      />
+
+      {/* Main Content Column */}
+      <div className="app-main-area">
+        {/* Sticky Header */}
+        <header className="app-header">
+          <div className="header-container">
+            <div className="header-left">
+              {/* Brand logo shown on mobile/tablet */}
+              <Link to="/" className="brand-wrapper mobile-only-brand">
+                <div className="brand-logo-badge">SB</div>
+                <div>
+                  <h1 className="brand-title">
+                    SimpleBill <span>Pro</span>
+                  </h1>
+                </div>
+              </Link>
+
+              {/* Branch Selector (Mobile/Tablet) */}
+              <div className="branch-select-wrapper mobile-only-branch">
+                <select
+                  value={selectedGroup}
+                  onChange={(e) => handleGroupSelect(e.target.value)}
+                  className="branch-select"
+                  aria-label="Select active store branch"
+                >
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDownIcon size={14} className="branch-select-arrow" />
               </div>
-            </Link>
 
-            {/* Branch Selector */}
-            <div className="branch-select-wrapper">
-              <select
-                value={selectedGroup}
-                onChange={(e) => handleGroupSelect(e.target.value)}
-                className="branch-select"
-                aria-label="Select active store branch"
+              {/* Desktop Breadcrumb / Location Badge */}
+              <div className="desktop-header-branch-pill">
+                <span className="desktop-branch-label">Branch:</span>
+                <strong className="desktop-branch-name">{currentGroupObj?.name || 'Main Branch'}</strong>
+              </div>
+            </div>
+
+            <div className="header-right">
+              {/* Printer Status Pill */}
+              <button
+                type="button"
+                onClick={handleConn}
+                className={`printer-status-pill ${isConnected ? 'online' : 'offline'}`}
+                title={isConnected ? 'Thermal Printer Connected' : 'Click to connect thermal printer'}
               >
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDownIcon size={14} className="branch-select-arrow" />
+                <span className={`status-dot ${isConnected ? 'online' : 'offline'}`} />
+                <PrinterIcon size={14} />
+                <span>{isConnected ? 'Printer Ready' : 'Connect Printer'}</span>
+              </button>
+
+              {/* Theme Toggle (Header Desktop) */}
+              <div className="desktop-header-theme">
+                <ThemeToggle theme={theme} onChange={handleThemeChange} />
+              </div>
+
+              {/* Mobile Menu Trigger Button (Hidden on >=1024px) */}
+              <button
+                type="button"
+                className="btn btn-secondary btn-icon mobile-menu-trigger"
+                onClick={() => setMobileMenuOpen(true)}
+                aria-label="Open navigation menu"
+              >
+                <MenuIcon size={18} />
+              </button>
+
+              {/* Logout button (Desktop) */}
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="btn btn-ghost btn-icon desktop-header-logout"
+                title="Sign Out"
+                aria-label="Sign Out"
+              >
+                <LogOutIcon size={17} />
+              </button>
             </div>
           </div>
+        </header>
 
-          <div className="header-right">
-            {/* Printer Status Pill */}
-            <button
-              type="button"
-              onClick={handleConn}
-              className={`printer-status-pill ${isConnected ? 'online' : 'offline'}`}
-              title={isConnected ? 'Thermal Printer Connected' : 'Click to connect thermal printer'}
-            >
-              <span className={`status-dot ${isConnected ? 'online' : 'offline'}`} />
-              <PrinterIcon size={14} />
-              <span>{isConnected ? 'Printer Ready' : 'Connect Printer'}</span>
-            </button>
+        {/* Main Content Viewport */}
+        <main id="main-content" className="app-main-content">
+          <Routes>
+            <Route path="/" element={<Dashboard user={session.user} currentGroup={currentGroupObj} />} />
+            <Route path="/pos" element={<QuickSale />} />
+            <Route path="/inventory" element={<Inventory />} />
+            <Route path="/history" element={<BillHistory />} />
+            <Route path="/expenses" element={<Expenses />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/staff" element={<Staff />} />
+          </Routes>
+        </main>
+      </div>
 
-            {/* Theme Toggle (Desktop) */}
-            <div className="header-theme-wrapper" style={{ display: 'none' }}>
-              <ThemeToggle theme={theme} onChange={handleThemeChange} />
-            </div>
-
-            {/* Mobile Menu Trigger */}
-            <button
-              type="button"
-              className="btn btn-secondary btn-icon"
-              onClick={() => setMobileMenuOpen(true)}
-              aria-label="Open navigation menu"
-              style={{ display: 'inline-flex' }}
-            >
-              <MenuIcon size={18} />
-            </button>
-
-            {/* Logout button */}
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="btn btn-ghost btn-icon"
-              title="Sign Out"
-              aria-label="Sign Out"
-            >
-              <LogOutIcon size={17} />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content Area */}
-      <main id="main-content" style={{ maxWidth: '1240px', margin: '0 auto', padding: '24px 20px 100px 20px' }}>
-        <Routes>
-          <Route path="/" element={<Dashboard user={session.user} currentGroup={currentGroupObj} />} />
-          <Route path="/pos" element={<QuickSale />} />
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/history" element={<BillHistory />} />
-          <Route path="/expenses" element={<Expenses />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/staff" element={<Staff />} />
-        </Routes>
-      </main>
-
-      {/* Floating Bottom Navigation for Mobile & Desktop Sidebar */}
+      {/* Floating Bottom Navigation for Mobile & Tablet (<1024px) */}
       <nav className="mobile-nav" aria-label="Main Navigation">
         <Link to="/" className={`nav-btn ${location.pathname === '/' ? 'active' : ''}`} title="Dashboard">
           <DashboardIcon size={20} />
@@ -454,7 +478,7 @@ function Dashboard({ user, currentGroup }) {
       {/* Top Banner & Last Updated Date */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '24px' }}>
         <div>
-          <h2 style={{ fontSize: '26px', fontWeight: 800 }}>
+          <h2 style={{ fontSize: 'clamp(22px, 3.5vw, 28px)', fontWeight: 800 }}>
             Hello, {user.user_metadata?.full_name?.split(' ')[0] || 'User'}
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '13.5px', marginTop: '2px' }}>
@@ -496,14 +520,14 @@ function Dashboard({ user, currentGroup }) {
       ) : (
         <>
           {/* Desert Sunset Hero Revenue Card */}
-          <div className="card card-hero" style={{ marginBottom: '20px', padding: '28px' }}>
+          <div className="card card-hero" style={{ marginBottom: '20px', padding: 'clamp(20px, 4vw, 32px)' }}>
             <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.9 }}>
               Today's Gross Sales
             </div>
-            <div style={{ fontSize: '42px', fontWeight: 800, margin: '6px 0', fontFamily: 'var(--font-display)', fontVariantNumeric: 'tabular-nums' }}>
+            <div style={{ fontSize: 'clamp(32px, 6vw, 48px)', fontWeight: 800, margin: '6px 0', fontFamily: 'var(--font-display)', fontVariantNumeric: 'tabular-nums' }}>
               ₹{stats.t.toLocaleString()}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginTop: '10px' }}>
               <div style={{ padding: '4px 12px', background: 'rgba(255, 255, 255, 0.2)', backdropFilter: 'blur(4px)', borderRadius: 'var(--radius-full)', fontSize: '12px', fontWeight: 700 }}>
                 {stats.n} {stats.n === 1 ? 'Transaction' : 'Transactions'}
               </div>
@@ -606,7 +630,7 @@ function Dashboard({ user, currentGroup }) {
 
           {/* Sales Trend Bar Chart (Last 7 Days) */}
           <div className="card" style={{ padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
               <div>
                 <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Sales Volume (Last 7 Days)</h3>
                 <p style={{ fontSize: '12px', color: 'var(--text-dim)', marginTop: '2px' }}>Comparison of cash vs online revenue</p>
@@ -623,7 +647,7 @@ function Dashboard({ user, currentGroup }) {
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '160px', gap: '10px', paddingBottom: '10px', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '160px', gap: '10px', paddingBottom: '10px', borderBottom: '1px solid var(--border)', overflowX: 'auto' }}>
               {chartData.map((d, i) => {
                 const dayTotal = d.cash + d.online;
                 const totalHeightPct = Math.max(8, (dayTotal / maxVal) * 100);
@@ -631,7 +655,7 @@ function Dashboard({ user, currentGroup }) {
                 const onlineHeightPct = dayTotal > 0 ? (d.online / dayTotal) * 100 : 0;
 
                 return (
-                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
+                  <div key={i} style={{ flex: 1, minWidth: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
                     <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '4px' }}>
                       {dayTotal > 0 ? `₹${dayTotal}` : '—'}
                     </div>
