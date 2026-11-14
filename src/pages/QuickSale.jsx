@@ -172,7 +172,8 @@ export default function QuickSale() {
         billItems,
         totalAmount,
         paymentMode,
-        business || {}
+        business || {},
+        finalDiscountValue
       );
 
       const tokenNumber = getNextTokenNumber(groupId);

@@ -238,67 +238,85 @@ export async function sendToPrinter(content, logoUrl = '') {
   }
 }
 
-export function generateBillContent(invoiceNumber, items, subtotal, paymentMode, business = {}) {
+export function generateBillContent(invoiceNumber, items, subtotal, paymentMode = 'Cash', business = {}, discount = 0) {
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-IN');
   const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-
-  // 58mm Thermal Printers hold exactly 32 standard characters per line.
   const LINE_WIDTH = 32;
 
+  const ESC = '\x1B';
+  const CENTER = `${ESC}\x61\x01`;
+  const LEFT = `${ESC}\x61\x00`;
+  const BOLD_ON = `${ESC}\x45\x01`;
+  const BOLD_OFF = `${ESC}\x45\x00`;
+
   let bill = `\n`;
-  
-  // Header: Business Details
-  if (business.business_name) {
-    bill += `${business.business_name.toUpperCase().substring(0, LINE_WIDTH)}\n`;
-  } else {
-    bill += `SIMPLEBILL PRO\n`;
-  }
-  
+
+  // Header: Store Name & Phone (Centered, matching on-screen card)
+  bill += `${CENTER}${BOLD_ON}${(business.business_name || 'SIMPLEBILL PRO').toUpperCase().substring(0, LINE_WIDTH)}${BOLD_OFF}\n`;
   if (business.location) bill += `${business.location.substring(0, LINE_WIDTH)}\n`;
   if (business.phone) bill += `Tel: ${business.phone}\n`;
   if (business.gst_number) bill += `GST: ${business.gst_number}\n`;
 
-  bill += `${'='.repeat(LINE_WIDTH)}
-INVOICE
-Date: ${dateStr} ${timeStr}
-Inv: #${invoiceNumber}
-${'='.repeat(LINE_WIDTH)}
+  // Separator & Metadata (Left, matching on-screen card)
+  bill += `${LEFT}`;
+  bill += `${'-'.repeat(LINE_WIDTH)}\n`;
 
-${'-'.repeat(LINE_WIDTH)}
-Item         Qty  Price    Total
-${'-'.repeat(LINE_WIDTH)}
-`;
+  // Inv & Payment Mode
+  const invLabel = `Inv: #${invoiceNumber}`;
+  const modeLabel = `Mode: ${(paymentMode || 'CASH').toUpperCase()}`;
+  const pad1 = Math.max(1, LINE_WIDTH - invLabel.length - modeLabel.length);
+  bill += `${invLabel}${' '.repeat(pad1)}${modeLabel}\n`;
 
-  // Layout: Item(12) Qty(3) Price(6) Total(8) = 12+1+3+1+6+1+8 = 32
+  // Date & Time
+  const dateLabel = `Date: ${dateStr}`;
+  const timeLabel = `Time: ${timeStr}`;
+  const pad2 = Math.max(1, LINE_WIDTH - dateLabel.length - timeLabel.length);
+  bill += `${dateLabel}${' '.repeat(pad2)}${timeLabel}\n`;
+
+  bill += `${'-'.repeat(LINE_WIDTH)}\n`;
+
+  // Table Header matching on-screen: Item (16) Qty (4) Total (10)
+  bill += `Item             Qty       Total\n`;
+  bill += `${'-'.repeat(LINE_WIDTH)}\n`;
+
+  // Items
   items.forEach(item => {
-      const itemTotal = item.price * item.qty;
-      const nameStr = item.name.substring(0, 12).padEnd(12);
-      const qtyStr = item.qty.toString().padStart(3);
-      const priceStr = item.price.toFixed(2).padStart(6);
-      const totalStr = itemTotal.toFixed(2).padStart(8);
-      
-      bill += `${nameStr} ${qtyStr} ${priceStr} ${totalStr}\n`;
+    const itemTotal = (item.price * item.qty).toFixed(2);
+    const nameStr = item.name.substring(0, 16).padEnd(16);
+    const qtyStr = item.qty.toString().padStart(4);
+    const totalStr = `Rs ${itemTotal}`.padStart(10);
+    bill += `${nameStr} ${qtyStr} ${totalStr}\n`;
   });
 
   bill += `${'-'.repeat(LINE_WIDTH)}\n`;
-  bill += `Subtotal: ${subtotal.toFixed(2).padStart(LINE_WIDTH - 10)}\n`;
-  bill += `${'='.repeat(LINE_WIDTH)}\n`;
-  bill += `TOTAL: Rs ${subtotal.toFixed(2).padStart(LINE_WIDTH - 10)}\n`;
-  bill += `\nItems: ${items.length.toString().padEnd(3)} Paid via: ${paymentMode}\n`;
-  bill += `${'-'.repeat(LINE_WIDTH)}\n`;
-  
-  if (business.custom_message) {
-    // Basic word wrap for custom message
-    const msg = business.custom_message;
-    for (let i = 0; i < msg.length; i += LINE_WIDTH) {
-      bill += msg.substring(i, i + LINE_WIDTH) + '\n';
-    }
-    bill += `${'-'.repeat(LINE_WIDTH)}\n`;
+
+  // Subtotal & Discount
+  const rawSub = (Number(subtotal) + (Number(discount) || 0)).toFixed(2);
+  const subLabel = 'Subtotal';
+  const subVal = `Rs ${rawSub}`;
+  bill += `${subLabel}${' '.repeat(Math.max(1, LINE_WIDTH - subLabel.length - subVal.length))}${subVal}\n`;
+
+  if (discount > 0) {
+    const discLabel = 'Discount';
+    const discVal = `-Rs ${Number(discount).toFixed(2)}`;
+    bill += `${discLabel}${' '.repeat(Math.max(1, LINE_WIDTH - discLabel.length - discVal.length))}${discVal}\n`;
   }
 
-  bill += `Thank You!\n`;
-  bill += `${'='.repeat(LINE_WIDTH)}\n`;
+  // Total Amount (Bold)
+  const totLabel = 'Total Amount';
+  const totVal = `Rs ${Number(subtotal).toFixed(2)}`;
+  bill += `${BOLD_ON}${totLabel}${' '.repeat(Math.max(1, LINE_WIDTH - totLabel.length - totVal.length))}${totVal}${BOLD_OFF}\n`;
+
+  bill += `${'-'.repeat(LINE_WIDTH)}\n`;
+
+  // Footer (Centered)
+  bill += `${CENTER}`;
+  if (business.custom_message) {
+    bill += `${business.custom_message.substring(0, LINE_WIDTH)}\n`;
+  }
+  bill += `Thank You! Visit Again\n`;
+  bill += `${LEFT}\n\n`;
 
   return bill;
 }
@@ -600,7 +618,7 @@ export function printFormattedReceipt(options = {}) {
               <tr>
                 <td class="col-item">${i.name}</td>
                 <td class="col-qty">${i.qty}</td>
-                <td class="col-amt">Rs ${(i.price * i.qty).toFixed(2)}</td>
+                <td class="col-amt">₹${(i.price * i.qty).toFixed(2)}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -611,19 +629,19 @@ export function printFormattedReceipt(options = {}) {
         <div class="receipt-totals">
           ${subtotal ? `
             <div class="total-row">
-              <span>Subtotal:</span>
-              <span>Rs ${Number(subtotal).toFixed(2)}</span>
+              <span>Subtotal</span>
+              <span>₹${Number(subtotal).toFixed(2)}</span>
             </div>
           ` : ''}
           ${discount > 0 ? `
-            <div class="total-row">
-              <span>Discount:</span>
-              <span>-Rs ${Number(discount).toFixed(2)}</span>
+            <div class="total-row" style="color: #b91c1c;">
+              <span>Discount</span>
+              <span>-₹${Number(discount).toFixed(2)}</span>
             </div>
           ` : ''}
           <div class="total-row grand-total">
-            <span>TOTAL:</span>
-            <span>Rs ${Number(total).toFixed(2)}</span>
+            <span>Total Amount</span>
+            <span>₹${Number(total).toFixed(2)}</span>
           </div>
         </div>
 
@@ -670,40 +688,64 @@ export function getNextTokenNumber(groupId) {
   return String(seq).padStart(2, '0');
 }
 
-export function generateTokenContent(tokenNumber, invoiceNumber, items = [], orderType = 'Counter Pickup', business = {}) {
+export function generateTokenContent(tokenNumber, invoiceNumber, items = [], orderType = 'Takeaway / Pickup', business = {}) {
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-IN');
   const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
   const LINE_WIDTH = 32;
 
+  const ESC = '\x1B';
+  const GS = '\x1D';
+  const CENTER = `${ESC}\x61\x01`;
+  const LEFT = `${ESC}\x61\x00`;
+  const BOLD_ON = `${ESC}\x45\x01`;
+  const BOLD_OFF = `${ESC}\x45\x00`;
+  const BIG_TEXT = `${GS}\x21\x11`; // Double width & double height for big hero token #
+  const NORMAL_TEXT = `${GS}\x21\x00`;
+
   let token = `\n`;
-  token += `${'='.repeat(LINE_WIDTH)}\n`;
-  token += `   ${(business.business_name || 'FOOD COUNTER').toUpperCase().substring(0, 26)}\n`;
-  token += `        ORDER TOKEN\n`;
-  token += `${'='.repeat(LINE_WIDTH)}\n\n`;
-  token += `        TOKEN #${tokenNumber}\n\n`;
-  token += `${'='.repeat(LINE_WIDTH)}\n`;
-  token += `Inv: #${invoiceNumber}\n`;
-  token += `Type: ${orderType.toUpperCase()}\n`;
-  token += `Time: ${dateStr} ${timeStr}\n`;
-  token += `${'-'.repeat(LINE_WIDTH)}\n`;
-  token += `QTY   ITEM DESCRIPTION\n`;
+
+  // Header: Business Name & Subtitle (Centered, matching on-screen card)
+  token += `${CENTER}${BOLD_ON}${(business.business_name || 'FOOD COUNTER').toUpperCase().substring(0, LINE_WIDTH)}${BOLD_OFF}\n`;
+  token += `PICKUP ORDER TOKEN\n\n`;
+
+  // Huge Token Hero Number: e.g. #06 (Matching on-screen card)
+  token += `${BIG_TEXT}${BOLD_ON}#${tokenNumber}${NORMAL_TEXT}${BOLD_OFF}\n\n`;
+
+  // Order Type Pill: e.g. [ DINE-IN ] (Matching on-screen card)
+  token += `${BOLD_ON}[ ${orderType.toUpperCase()} ]${BOLD_OFF}\n\n`;
+
+  // Metadata (Left, matching on-screen card)
+  token += `${LEFT}`;
   token += `${'-'.repeat(LINE_WIDTH)}\n`;
 
-  let totalQty = 0;
+  // Inv & Time
+  const invStr = `Inv: #${invoiceNumber}`;
+  const timeLabel = `Time: ${timeStr}`;
+  const pad1 = Math.max(1, LINE_WIDTH - invStr.length - timeLabel.length);
+  token += `${invStr}${' '.repeat(pad1)}${timeLabel}\n`;
+
+  // Date & Total items
+  const dateLabel = `Date: ${dateStr}`;
+  const totalQty = items.reduce((sum, i) => sum + (Number(i.qty) || 1), 0);
+  const itemsLabel = `Items: ${totalQty}`;
+  const pad2 = Math.max(1, LINE_WIDTH - dateLabel.length - itemsLabel.length);
+  token += `${dateLabel}${' '.repeat(pad2)}${itemsLabel}\n`;
+
+  token += `${'-'.repeat(LINE_WIDTH)}\n`;
+  token += `${BOLD_ON}ITEMS CHECKLIST:${BOLD_OFF}\n`;
+  token += `${'-'.repeat(LINE_WIDTH)}\n`;
+
+  // Items: [ ] 1x  Item Name
   items.forEach(item => {
-    totalQty += item.qty;
-    const qtyStr = `${item.qty}x`.padEnd(5);
-    const nameStr = item.name.substring(0, 24);
-    token += `[ ] ${qtyStr} ${nameStr}\n`;
+    const qty = `${item.qty}x`.padEnd(4);
+    const name = item.name.substring(0, LINE_WIDTH - 9);
+    token += `[ ] ${qty} ${name}\n`;
   });
 
   token += `${'-'.repeat(LINE_WIDTH)}\n`;
-  token += `Total Items: ${items.length}  Total Qty: ${totalQty}\n`;
-  token += `${'='.repeat(LINE_WIDTH)}\n`;
-  token += `Please present this token at counter\n`;
-  token += `      for food collection\n`;
-  token += `${'='.repeat(LINE_WIDTH)}\n\n\n\n`;
+  token += `${CENTER}* Give this slip at food counter\nfor collection *\n`;
+  token += `${LEFT}\n\n`;
 
   return token;
 }
@@ -878,8 +920,8 @@ export function printOrderToken(options = {}) {
       <body>
         <div class="token-header">
           ${effectiveLogo ? `<img src="${effectiveLogo}" alt="Logo" class="token-logo" id="token-slip-logo" />` : ''}
-          <div class="store-name">${business?.business_name || 'FOOD COUNTER TOKEN'}</div>
-          <div class="token-badge-title">Kitchen / Counter Order</div>
+          <div class="store-name">${business?.business_name || 'FOOD COUNTER'}</div>
+          <div class="token-badge-title">Pickup Order Token</div>
           <div class="token-number-hero">#${tokenNumber}</div>
           <div class="token-type-pill">${orderType}</div>
         </div>
@@ -891,13 +933,12 @@ export function printOrderToken(options = {}) {
           </div>
           <div style="text-align: right;">
             <div><strong>Time:</strong> ${formattedTime}</div>
-            <div><strong>Items:</strong> ${items.length} (${totalQty} pcs)</div>
+            <div><strong>Items:</strong> ${totalQty}</div>
           </div>
         </div>
 
         <div class="items-header">
-          <span>Items to Prepare / Handover</span>
-          <span>Qty</span>
+          <span>Items Checklist:</span>
         </div>
 
         <div>
@@ -910,14 +951,8 @@ export function printOrderToken(options = {}) {
           `).join('')}
         </div>
 
-        <div class="token-summary">
-          <span>Total Quantities</span>
-          <span>${totalQty} items</span>
-        </div>
-
         <div class="token-footer">
-          <div>Please show this token at the counter</div>
-          <div>for food order collection &bull; Thank You!</div>
+          <div>★ Give this slip at food counter for collection ★</div>
         </div>
       </body>
     </html>
@@ -1217,7 +1252,7 @@ export function printCombinedReceiptAndToken(receiptOptions = {}, tokenOptions =
               <tr>
                 <td class="col-item">${i.name}</td>
                 <td class="col-qty">${i.qty}</td>
-                <td class="col-amt">Rs ${(i.price * i.qty).toFixed(2)}</td>
+                <td class="col-amt">₹${(i.price * i.qty).toFixed(2)}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -1228,19 +1263,19 @@ export function printCombinedReceiptAndToken(receiptOptions = {}, tokenOptions =
         <div class="receipt-totals">
           ${subtotal ? `
             <div class="total-row">
-              <span>Subtotal:</span>
-              <span>Rs ${Number(subtotal).toFixed(2)}</span>
+              <span>Subtotal</span>
+              <span>₹${Number(subtotal).toFixed(2)}</span>
             </div>
           ` : ''}
           ${discount > 0 ? `
-            <div class="total-row">
-              <span>Discount:</span>
-              <span>-Rs ${Number(discount).toFixed(2)}</span>
+            <div class="total-row" style="color: #b91c1c;">
+              <span>Discount</span>
+              <span>-₹${Number(discount).toFixed(2)}</span>
             </div>
           ` : ''}
           <div class="total-row grand-total">
-            <span>TOTAL:</span>
-            <span>Rs ${Number(total).toFixed(2)}</span>
+            <span>Total Amount</span>
+            <span>₹${Number(total).toFixed(2)}</span>
           </div>
         </div>
 
