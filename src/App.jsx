@@ -266,7 +266,8 @@ function AppContent() {
                   Overview
                 </Link>
                 <Link to="/pos" className={`v14-pill-tab ${location.pathname === '/pos' ? 'active' : ''}`}>
-                  Point of Sale
+                  <span className="nav-label-long">Point of Sale</span>
+                  <span className="nav-label-short">POS</span>
                 </Link>
                 <Link to="/inventory" className={`v14-pill-tab ${location.pathname === '/inventory' ? 'active' : ''}`}>
                   Inventory
