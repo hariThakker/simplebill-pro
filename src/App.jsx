@@ -420,8 +420,10 @@ function AppContent() {
         onThemeChange={handleThemeChange}
       />
 
-      {/* Floating Contact & Support Widget */}
-      <FloatingContact currentGroup={currentGroupObj} businessSettings={businessSettings} />
+      {/* Help & Info Widget - Only visible on Manage (/settings) */}
+      {location.pathname === '/settings' && (
+        <FloatingContact currentGroup={currentGroupObj} businessSettings={businessSettings} />
+      )}
 
       {/* Back to top smooth scroll */}
       <BackToTop />

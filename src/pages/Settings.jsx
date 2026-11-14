@@ -12,7 +12,10 @@ import {
   Trash2Icon,
   CheckCircle2Icon,
   XIcon,
-  AlertTriangleIcon
+  AlertTriangleIcon,
+  HelpCircleIcon,
+  PhoneIcon,
+  MapPinIcon
 } from '../components/Icons';
 import ConfirmModal from '../components/ConfirmModal';
 import CopyButton from '../components/CopyButton';
@@ -553,6 +556,50 @@ export default function Settings() {
               </button>
             );
           })}
+        </div>
+      </section>
+
+      {/* Help & Store Support Information */}
+      <section className="card" style={{ padding: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+          <HelpCircleIcon size={20} style={{ color: 'var(--primary)' }} />
+          <h3 style={{ fontSize: '17px', fontWeight: 800 }}>Help & Store Support</h3>
+        </div>
+        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+          Direct store contact details and thermal printer hardware guide.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+          <div style={{ padding: '14px', background: 'var(--card-subtle)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-dim)', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, marginBottom: '6px' }}>
+              <PhoneIcon size={14} /> Store Hotline
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <a href={`tel:${(formData.phone || '+91 98765 43210').replace(/\s+/g, '')}`} style={{ fontSize: '14px', fontWeight: 700, color: 'var(--primary)', textDecoration: 'none' }}>
+                {formData.phone || '+91 98765 43210'}
+              </a>
+              <CopyButton text={formData.phone || '+91 98765 43210'} size={13} />
+            </div>
+          </div>
+
+          <div style={{ padding: '14px', background: 'var(--card-subtle)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-dim)', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, marginBottom: '6px' }}>
+              <MapPinIcon size={14} /> Branch Location
+            </div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>
+              {formData.location || 'Main Counter / Ground Floor'}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ padding: '14px', background: 'var(--primary-subtle)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+            <PrinterIcon size={16} style={{ color: 'var(--primary)' }} />
+            <strong style={{ fontSize: '13px' }}>Thermal POS Printer Guide</strong>
+          </div>
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+            Ensure Bluetooth is enabled on your device. Connect standard 58mm or 80mm ESC/POS thermal printers via the Connect Printer button in the top bar. High-contrast bitmap logos and token slips print directly without browser dialogs in Chrome and Edge.
+          </p>
         </div>
       </section>
 

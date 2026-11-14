@@ -1864,7 +1864,7 @@ button, input, select, textarea {
 @media (min-width: 1024px) {
   .floating-contact-container {
     bottom: 24px;
-    left: 284px; /* 260px sidebar + 24px padding */
+    left: 24px;
   }
 }
 
